@@ -4,3 +4,4 @@
 /lib/libfluids.so
 /src/fluids.o
 /src/testfluids.o
+/src/matrix.o
