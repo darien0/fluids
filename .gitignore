@@ -1,0 +1,6 @@
+/bin/testfluids
+/include/fluids.h
+/lib/libfluids.a
+/lib/libfluids.so
+/src/fluids.o
+/src/testfluids.o
