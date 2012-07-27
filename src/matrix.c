@@ -24,11 +24,17 @@
  *------------------------------------------------------------------------------
  */
 #include "matrix.h"
+#include <cblas.h>
 #define SMALL 1e-12
 
 int matrix_matrix_product(const double *A, const double *B, double *C,
 			  int ni, int nj, int nk)
 {
+  // http://en.wikipedia.org/wiki/General_Matrix_Multiply
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+	      ni, nj, nk, 1.0, A, ni, B, nk, 0.0, C, ni);
+  return 0;
+
   /* ---------------------------------------------------------------------------
    * Multiplies matrices C = A*B according to
    *

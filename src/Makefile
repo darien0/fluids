@@ -19,6 +19,9 @@ EXE = 	$(BINDIR)/testfluids
 LIBS = $(LIBDIR)/libfluids.so $(LIBDIR)/libfluids.a
 HEADERS = $(INCDIR)/fluids.h
 
+INC = -I/System/Library/Frameworks/vecLib.framework/Versions/A/Headers
+LIB = -lblas
+
 default : all
 
 exe : $(BINDIR) $(EXE)

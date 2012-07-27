@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <time.h>
 #include <math.h>
 #include "fluids.h"
 #include "matrix.h"
@@ -123,11 +124,49 @@ int test4()
   return 0;
 }
 
+int test5()
+{
+  double x[5] = {1, 1, 1, 1, 1};
+  double gam = 1.4;
+  double V[5];
+  double L[25];
+  double R[25];
+  double I[25];
+  double A[25];
+  double LA[25];
+  double LAR[25];
+  fluid_state *S = fluids_new();
+  fluids_setfluid(S, FLUIDS_NRHYD);
+  fluids_setattrib(S, &gam, FLUIDS_GAMMALAWINDEX);
+  fluids_setattrib(S, x, FLUIDS_PRIMITIVE);
+  fluids_p2c(S);
+  fluids_update(S,
+		FLUIDS_EVALS0 |
+		FLUIDS_LEVECS0 |
+		FLUIDS_REVECS0 |
+		FLUIDS_JACOBIAN0);
+  fluids_getattrib(S, V, FLUIDS_EVALS0);
+  fluids_getattrib(S, L, FLUIDS_LEVECS0);
+  fluids_getattrib(S, R, FLUIDS_REVECS0);
+  fluids_getattrib(S, A, FLUIDS_JACOBIAN0);
+  fluids_del(S);
+  clock_t start = clock();
+  for (int n=0; n<238000; ++n) {
+    matrix_matrix_product(L, R, I, 5, 5, 5);
+    matrix_matrix_product(L, A, LA, 5, 5, 5);
+    matrix_matrix_product(LA, R, LAR, 5, 5, 5);
+  }
+  clock_t end = clock();
+  printf("test took %f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
+  return 0;
+}
+
 int main()
 {
-  test1();
-  test2();
-  test3();
-  test4();
+  //test1();
+  //test2();
+  //test3();
+  //test4();
+  test5();
   return 0;
 }
