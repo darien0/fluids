@@ -5,3 +5,4 @@
 /src/fluids.o
 /src/testfluids.o
 /src/matrix.o
+/src/riemann.o
