@@ -15,11 +15,8 @@ all : clib
 clib : 
 	@make -C src
 
-#python :
-#	@make -C python
-
-#cython : clib
-#	@make -C cython
+pyfluids : clib
+	@make -C pyfluids
 
 install : clib
 	mkdir -p $(FLUIDSLIB_INSTALL)/include; cp include/* $(FLUIDSLIB_INSTALL)/include
@@ -28,6 +25,5 @@ install : clib
 
 clean :
 	@make -C src clean
-#	@make -C python clean
-#	@make -C cython clean
+	@make -C pyfluids clean
 	@rm -rf lib bin include
