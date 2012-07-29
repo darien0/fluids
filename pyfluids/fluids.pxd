@@ -83,3 +83,9 @@ cdef extern from "fluids.h":
 
 cdef class FluidState(object):
     cdef fluid_state *_c
+
+cdef class RiemannSolver(object):
+    cdef fluid_riemann *_c
+    cdef FluidState SL
+    cdef FluidState SR
+

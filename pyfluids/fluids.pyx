@@ -35,6 +35,14 @@ cdef class FluidState(object):
             fluids_getattrib(self._c, <double*>U.data, FLUIDS_CONSERVED)
             return U
 
+    property gammalawindex:
+        def __set__(self, double gam):
+            fluids_setattrib(self._c, &gam, FLUIDS_GAMMALAWINDEX)
+        def __get__(self):
+            cdef double gam
+            fluids_getattrib(self._c, &gam, FLUIDS_GAMMALAWINDEX)
+            return gam
+
     def eigenvalues(self, dim=0):
         cdef int flag = [FLUIDS_EVALS0, FLUIDS_EVALS1, FLUIDS_EVALS2][dim]
         cdef np.ndarray[np.double_t] L = np.zeros(5)
@@ -51,3 +59,34 @@ cdef class FluidState(object):
         fluids_getattrib(self._c, <double*>L.data, flagL)
         fluids_getattrib(self._c, <double*>R.data, flagR)
         return L, R
+
+
+cdef class RiemannSolver(object):
+    def __cinit__(self):
+        self._c = fluids_riemann_new()
+        self.SL = None
+        self.SR = None
+
+    def __dealloc__(self):
+        fluids_riemann_del(self._c)
+
+    def __init__(self):
+        pass
+
+    def set_states(self, FluidState SL, FluidState SR):
+        assert SL.gammalawindex == SR.gammalawindex
+        self.SL = SL # hold onto these so they're not deleted
+        self.SR = SR
+        fluids_riemann_setdim(self._c, 0)
+        fluids_riemann_setstateL(self._c, SL._c)
+        fluids_riemann_setstateR(self._c, SR._c)
+        fluids_riemann_execute(self._c)
+
+    def sample(self, double s):
+        if self.SL is None or self.SR is None:
+            raise ValueError("solver needs a need a left and right state")
+        cdef FluidState S = FluidState()
+        S.gammalawindex = self.SL.gammalawindex
+        fluids_riemann_sample(self._c, S._c, s) # sets S.primitive
+        return S
+
