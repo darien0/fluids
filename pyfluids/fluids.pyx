@@ -71,13 +71,19 @@ cdef class RiemannSolver(object):
         fluids_riemann_del(self._c)
 
     def __init__(self):
-        pass
+        fluids_riemann_setsolver(self._c, FLUIDS_RIEMANN_EXACT)
+
+    property solver:
+        def __set__(self, val):
+            solvers = {'hll': FLUIDS_RIEMANN_HLL,
+                       'hllc': FLUIDS_RIEMANN_HLLC,
+                       'exact': FLUIDS_RIEMANN_EXACT,}
+            fluids_riemann_setsolver(self._c, solvers[val])
 
     def set_states(self, FluidState SL, FluidState SR):
         assert SL.gammalawindex == SR.gammalawindex
         self.SL = SL # hold onto these so they're not deleted
         self.SR = SR
-        fluids_riemann_setsolver(self._c, FLUIDS_RIEMANN_EXACT)
         fluids_riemann_setdim(self._c, 0)
         fluids_riemann_setstateL(self._c, SL._c)
         fluids_riemann_setstateR(self._c, SR._c)
