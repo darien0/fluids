@@ -44,7 +44,7 @@ cdef class FluidState(object):
             return gam
 
     def eigenvalues(self, dim=0):
-        cdef int flag = [FLUIDS_EVALS0, FLUIDS_EVALS1, FLUIDS_EVALS2][dim]
+        cdef int flag = [FLUIDS_EVAL0, FLUIDS_EVAL1, FLUIDS_EVAL2][dim]
         cdef np.ndarray[np.double_t] L = np.zeros(5)
         fluids_update(self._c, flag)
         fluids_getattrib(self._c, <double*>L.data, flag)
@@ -77,6 +77,7 @@ cdef class RiemannSolver(object):
         assert SL.gammalawindex == SR.gammalawindex
         self.SL = SL # hold onto these so they're not deleted
         self.SR = SR
+        fluids_riemann_setsolver(self._c, FLUIDS_RIEMANN_EXACT)
         fluids_riemann_setdim(self._c, 0)
         fluids_riemann_setstateL(self._c, SL._c)
         fluids_riemann_setstateR(self._c, SR._c)
@@ -88,5 +89,6 @@ cdef class RiemannSolver(object):
         cdef FluidState S = FluidState()
         S.gammalawindex = self.SL.gammalawindex
         fluids_riemann_sample(self._c, S._c, s) # sets S.primitive
+        fluids_c2p(S._c)
         return S
 

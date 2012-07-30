@@ -9,9 +9,9 @@ cdef extern from "fluids.h":
     cdef int FLUIDS_FLUX0             = (1<<6)
     cdef int FLUIDS_FLUX1             = (1<<7)
     cdef int FLUIDS_FLUX2             = (1<<8)
-    cdef int FLUIDS_EVALS0            = (1<<9)
-    cdef int FLUIDS_EVALS1            = (1<<10)
-    cdef int FLUIDS_EVALS2            = (1<<11)
+    cdef int FLUIDS_EVAL0             = (1<<9)
+    cdef int FLUIDS_EVAL1             = (1<<10)
+    cdef int FLUIDS_EVAL2             = (1<<11)
     cdef int FLUIDS_LEVECS0           = (1<<12)
     cdef int FLUIDS_LEVECS1           = (1<<13)
     cdef int FLUIDS_LEVECS2           = (1<<14)
@@ -29,7 +29,7 @@ cdef extern from "fluids.h":
     cdef int FLUIDS_FLAGSALL          = ((1<<30) - 1)
 
     cdef int FLUIDS_FLUXALL           = (FLUIDS_FLUX0|FLUIDS_FLUX1|FLUIDS_FLUX2)
-    cdef int FLUIDS_EVALSALL          = (FLUIDS_EVALS0|FLUIDS_EVALS1|FLUIDS_EVALS2)
+    cdef int FLUIDS_EVALSALL          = (FLUIDS_EVAL0|FLUIDS_EVAL1|FLUIDS_EVAL2)
     cdef int FLUIDS_LEVECSALL         = (FLUIDS_LEVECS0|FLUIDS_LEVECS1|FLUIDS_LEVECS2)
     cdef int FLUIDS_REVECSALL         = (FLUIDS_REVECS0|FLUIDS_REVECS1|FLUIDS_REVECS2)
     cdef int FLUIDS_JACOBIANALL       = (FLUIDS_JACOBIAN0|FLUIDS_JACOBIAN1|FLUIDS_JACOBIAN2)
@@ -56,6 +56,10 @@ cdef extern from "fluids.h":
     cdef int FLUIDS_ERROR_BADREQUEST  = -67
     cdef int FLUIDS_ERROR_RIEMANN     = -68
 
+    cdef int FLUIDS_RIEMANN_HLL       = -69
+    cdef int FLUIDS_RIEMANN_HLLC      = -70
+    cdef int FLUIDS_RIEMANN_EXACT     = -71
+
     struct fluid_state
     struct fluid_riemann
 
@@ -78,6 +82,7 @@ cdef extern from "fluids.h":
     int fluids_riemann_setdim(fluid_riemann *R, int dim)
     int fluids_riemann_execute(fluid_riemann *R)
     int fluids_riemann_sample(fluid_riemann *R, fluid_state *S, double s)
+    int fluids_riemann_setsolver(fluid_riemann *R, int solver)
 
 
 
