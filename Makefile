@@ -10,7 +10,7 @@ FLUIDSLIB_INSTALL ?= $(PREFIX)
 
 default : clib
 
-all : clib
+all : clib pyfluids
 
 clib : 
 	@make -C src

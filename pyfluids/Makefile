@@ -9,4 +9,4 @@ PYFLUIDS :
 
 clean :
 	python setup.py clean --all
-
+	rm -f *.so *.c *.pyc
