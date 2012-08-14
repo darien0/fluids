@@ -6,3 +6,6 @@
 /src/testfluids.o
 /src/matrix.o
 /src/riemann.o
+/pyfluids/__init__.pyc
+/pyfluids/fluids.c
+/pyfluids/fluids.so

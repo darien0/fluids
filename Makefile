@@ -15,12 +15,6 @@ all : clib
 clib : 
 	@make -C src
 
-#python :
-#	@make -C python
-
-#cython : clib
-#	@make -C cython
-
 install : clib
 	mkdir -p $(FLUIDSLIB_INSTALL)/include; cp include/* $(FLUIDSLIB_INSTALL)/include
 	mkdir -p $(FLUIDSLIB_INSTALL)/bin; cp bin/* $(FLUIDSLIB_INSTALL)/bin
@@ -28,6 +22,4 @@ install : clib
 
 clean :
 	@make -C src clean
-#	@make -C python clean
-#	@make -C cython clean
 	@rm -rf lib bin include
