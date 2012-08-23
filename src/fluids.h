@@ -57,10 +57,11 @@
 #define FLUIDS_ERROR_BADARG      -66
 #define FLUIDS_ERROR_BADREQUEST  -67
 #define FLUIDS_ERROR_RIEMANN     -68
+#define FLUIDS_ERROR_INCOMPLETE  -69
 
-#define FLUIDS_RIEMANN_HLL       -69
-#define FLUIDS_RIEMANN_HLLC      -70
-#define FLUIDS_RIEMANN_EXACT     -71
+#define FLUIDS_RIEMANN_HLL       -70
+#define FLUIDS_RIEMANN_HLLC      -71
+#define FLUIDS_RIEMANN_EXACT     -72
 
 
 #ifdef FLUIDS_INDEX_VARS
@@ -76,14 +77,18 @@ typedef struct fluid_riemann fluid_riemann;
 fluid_state *fluids_new(void);
 int fluids_del(fluid_state *S);
 int fluids_update(fluid_state *S, long flags);
-int fluids_c2p(fluid_state *S);
-int fluids_p2c(fluid_state *S);
+int fluids_setcachevalid(fluid_state *S, long flags);
+int fluids_setcacheinvalid(fluid_state *S, long flags);
+int fluids_getlastupdate(fluid_state *S, long *flags);
+int fluids_alloc(fluid_state *S, long flags);
+int fluids_mapbuffer(fluid_state *S, long flag, void *buffer);
 int fluids_setfluid(fluid_state *S, int fluid);
 int fluids_seteos(fluid_state *S, int eos);
 int fluids_setcoordsystem(fluid_state *S, int coordsystem);
 int fluids_setnpassive(fluid_state *S, int n);
 int fluids_getattrib(fluid_state *S, double *x, long flag);
 int fluids_setattrib(fluid_state *S, double *x, long flag);
+int fluids_getnwaves(int fluid);
 
 fluid_riemann *fluids_riemann_new(void);
 int fluids_riemann_del(fluid_riemann *R);
@@ -101,7 +106,9 @@ struct fluid_state {
   int coordsystem;
   int nwaves;
   int npassive;
+  long ownsbufferflags;
   long needsupdateflags;
+  long lastupdatedflags;
   double *location;
   double *passive;
   double *conserved;
@@ -120,5 +127,12 @@ struct fluid_state {
   double gammalawindex;
 } ;
 
+/* http://en.wikipedia.org/wiki/Bitwise_operation#NOT */
+#define BITWISENOT(x) (-(x) - 1)
+#define MAPBUF 2
+#define ALLOC 1
+#define DEALLOC 0
+
 #endif // FLUIDS_PRIVATE_DEFS
+
 #endif // FLUIDS_HEADER_INCLUDED

@@ -55,10 +55,11 @@ cdef extern from "fluids.h":
     cdef int FLUIDS_ERROR_BADARG      = -66
     cdef int FLUIDS_ERROR_BADREQUEST  = -67
     cdef int FLUIDS_ERROR_RIEMANN     = -68
+    cdef int FLUIDS_ERROR_INCOMPLETE  = -69
 
-    cdef int FLUIDS_RIEMANN_HLL       = -69
-    cdef int FLUIDS_RIEMANN_HLLC      = -70
-    cdef int FLUIDS_RIEMANN_EXACT     = -71
+    cdef int FLUIDS_RIEMANN_HLL       = -70
+    cdef int FLUIDS_RIEMANN_HLLC      = -71
+    cdef int FLUIDS_RIEMANN_EXACT     = -72
 
     struct fluid_state
     struct fluid_riemann
@@ -66,14 +67,18 @@ cdef extern from "fluids.h":
     fluid_state *fluids_new()
     int fluids_del(fluid_state *S)
     int fluids_update(fluid_state *S, long flags)
-    int fluids_c2p(fluid_state *S)
-    int fluids_p2c(fluid_state *S)
+    int fluids_setcachevalid(fluid_state *S, long flags)
+    int fluids_setcacheinvalid(fluid_state *S, long flags)
+    int fluids_getlastupdate(fluid_state *S, long *flags)
+    int fluids_alloc(fluid_state *S, long flags)
+    int fluids_mapbuffer(fluid_state *S, long flag, void *buffer)
     int fluids_setfluid(fluid_state *S, int fluid)
     int fluids_seteos(fluid_state *S, int eos)
     int fluids_setcoordsystem(fluid_state *S, int coordsystem)
     int fluids_setnpassive(fluid_state *S, int n)
     int fluids_getattrib(fluid_state *S, double *x, long flag)
     int fluids_setattrib(fluid_state *S, double *x, long flag)
+    int fluids_getnwaves(int fluid)
 
     fluid_riemann *fluids_riemann_new()
     int fluids_riemann_del(fluid_riemann *R)
@@ -85,9 +90,9 @@ cdef extern from "fluids.h":
     int fluids_riemann_setsolver(fluid_riemann *R, int solver)
 
 
-
 cdef class FluidState(object):
     cdef fluid_state *_c
+    cdef _getattrib(self, double *val, int flag)
 
 cdef class RiemannSolver(object):
     cdef fluid_riemann *_c

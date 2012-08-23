@@ -12,27 +12,34 @@ cdef class FluidState(object):
 
     def __init__(self):
         fluids_setfluid(self._c, FLUIDS_NRHYD)
+        fluids_alloc(self._c, FLUIDS_FLAGSALL)
+
+    cdef _getattrib(self, double *val, int flag):
+        cdef int err = fluids_getattrib(self._c, val, flag)
+        if err == FLUIDS_ERROR_INCOMPLETE:
+            raise RuntimeError("incomplete state: primitive or conserved "
+                               "must already be set")
+        elif err != 0:
+            raise RuntimeError("unknown error: " + str(err))
 
     property primitive:
         def __set__(self, np.ndarray[np.double_t] P):
             # check P has length 5
             fluids_setattrib(self._c, <double*>P.data, FLUIDS_PRIMITIVE)
-            fluids_p2c(self._c)
         def __get__(self):
             # get length of primitive here
             cdef np.ndarray[np.double_t] P = np.zeros(5)
-            fluids_getattrib(self._c, <double*>P.data, FLUIDS_PRIMITIVE)
+            self._getattrib(<double*>P.data, FLUIDS_PRIMITIVE)
             return P
 
     property conserved:
         def __set__(self, np.ndarray[np.double_t] U):
             # check U has length 5
             fluids_setattrib(self._c, <double*>U.data, FLUIDS_CONSERVED)
-            fluids_c2p(self._c)
         def __get__(self):
             # get length of primitive here
             cdef np.ndarray[np.double_t] U = np.zeros(5)
-            fluids_getattrib(self._c, <double*>U.data, FLUIDS_CONSERVED)
+            self._getattrib(<double*>U.data, FLUIDS_CONSERVED)
             return U
 
     property gammalawindex:
@@ -40,14 +47,13 @@ cdef class FluidState(object):
             fluids_setattrib(self._c, &gam, FLUIDS_GAMMALAWINDEX)
         def __get__(self):
             cdef double gam
-            fluids_getattrib(self._c, &gam, FLUIDS_GAMMALAWINDEX)
+            self._getattrib(&gam, FLUIDS_GAMMALAWINDEX)
             return gam
 
     def eigenvalues(self, dim=0):
         cdef int flag = [FLUIDS_EVAL0, FLUIDS_EVAL1, FLUIDS_EVAL2][dim]
         cdef np.ndarray[np.double_t] L = np.zeros(5)
-        fluids_update(self._c, flag)
-        fluids_getattrib(self._c, <double*>L.data, flag)
+        self._getattrib(<double*>L.data, flag)
         return L
 
     def eigenvectors(self, dim=0):
@@ -55,9 +61,8 @@ cdef class FluidState(object):
         cdef int flagR = [FLUIDS_REVECS0, FLUIDS_REVECS1, FLUIDS_REVECS2][dim]
         cdef np.ndarray[np.double_t,ndim=2] L = np.zeros((5,5))
         cdef np.ndarray[np.double_t,ndim=2] R = np.zeros((5,5))
-        fluids_update(self._c, flagL | flagR)
-        fluids_getattrib(self._c, <double*>L.data, flagL)
-        fluids_getattrib(self._c, <double*>R.data, flagR)
+        self._getattrib(<double*>L.data, flagL)
+        self._getattrib(<double*>R.data, flagR)
         return L, R
 
 
@@ -95,6 +100,4 @@ cdef class RiemannSolver(object):
         cdef FluidState S = FluidState()
         S.gammalawindex = self.SL.gammalawindex
         fluids_riemann_sample(self._c, S._c, s) # sets S.primitive
-        fluids_c2p(S._c)
         return S
-

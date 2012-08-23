@@ -9,17 +9,25 @@
 #include <string.h>
 #include <math.h>
 
-#define ALLOC 1
-#define DEALLOC 0
-
-static void _alloc_state(fluid_state *S, long modes, int op);
 static int _getsetattrib(fluid_state *S, double *x, long flag, char op);
 static int _nrhyd_c2p(fluid_state *S);
 static int _nrhyd_p2c(fluid_state *S);
-static double _nrhyd_cs2(fluid_state *S);
 static int _nrhyd_update(fluid_state *S, long flags);
+static void _nrhyd_cs2(fluid_state *S, double *cs2);
 static void _nrhyd_eigenvec(fluid_state *S, int dim, int doleft, int dorght);
 static void _nrhyd_jacobian(fluid_state *S, int dim);
+static void _alloc_state(fluid_state *S, long modes, int op, void *buffer);
+
+int fluids_getnwaves(int fluid)
+{
+  switch (fluid) {
+  case FLUIDS_SCALAR_ADVECTION: return 1;
+  case FLUIDS_SCALAR_BURGERS: return 1;
+  case FLUIDS_SHALLOW_WATER: return 4;
+  case FLUIDS_NRHYD: return 5;
+  default: return 0;
+  }
+}
 
 fluid_state *fluids_new()
 {
@@ -30,6 +38,9 @@ fluid_state *fluids_new()
     .coordsystem = FLUIDS_COORD_CARTESIAN,
     .nwaves = 0,
     .npassive = 0,
+    .ownsbufferflags = FLUIDS_FLAGSALL,
+    .needsupdateflags = FLUIDS_FLAGSALL,
+    .lastupdatedflags = 0,
     .location = NULL,
     .passive = NULL,
     .conserved = NULL,
@@ -52,72 +63,54 @@ fluid_state *fluids_new()
 
 int fluids_del(fluid_state *S)
 {
-  _alloc_state(S, FLUIDS_FLAGSALL, DEALLOC);
+  _alloc_state(S, FLUIDS_FLAGSALL, DEALLOC, NULL);
   free(S);
   return 0;
 }
 
 int fluids_setfluid(fluid_state *S, int fluid)
 {
-  long modes = 0;
-
-  modes |= FLUIDS_CONSERVED;
-  modes |= FLUIDS_PRIMITIVE;
-  modes |= FLUIDS_FLUXALL;
-  modes |= FLUIDS_EVALSALL;
-  modes |= FLUIDS_LEVECSALL;
-  modes |= FLUIDS_REVECSALL;
-  modes |= FLUIDS_JACOBIANALL;
-
-  switch (fluid) {
-  case FLUIDS_SCALAR_ADVECTION:
-    S->fluid = fluid;
-    S->nwaves = 1;
-    break;
-  case FLUIDS_SCALAR_BURGERS:
-    S->fluid = fluid;
-    S->nwaves = 1;
-    break;
-  case FLUIDS_SHALLOW_WATER:
-    S->fluid = fluid;
-    S->nwaves = 4;
-    break;
-  case FLUIDS_NRHYD:
-    S->fluid = fluid;
-    S->nwaves = 5;
-    break;
-  default:
-    return FLUIDS_ERROR_BADREQUEST;
-  }
-  _alloc_state(S, modes, ALLOC);
+  S->needsupdateflags = FLUIDS_FLAGSALL;
+  S->fluid = fluid;
+  S->nwaves = fluids_getnwaves(fluid);
   return 0;
 }
 
 int fluids_seteos(fluid_state *S, int eos)
 {
+  S->needsupdateflags = FLUIDS_FLAGSALL;
   S->eos = eos;
   return 0;
 }
 
 int fluids_setcoordsystem(fluid_state *S, int coordsystem)
 {
+  S->needsupdateflags = FLUIDS_FLAGSALL;
   S->coordsystem = coordsystem;
   return 0;
 }
 
 int fluids_setnpassive(fluid_state *S, int n)
 {
+  S->needsupdateflags = FLUIDS_FLAGSALL;
   S->npassive = n;
   return 0;
 }
 
 int fluids_getattrib(fluid_state *S, double *x, long flag)
 {
-  return _getsetattrib(S, x, flag, 'g');
+  int err = fluids_update(S, flag);
+  if (err) {
+    return err;
+  }
+  else {
+    return _getsetattrib(S, x, flag, 'g');
+  }
 }
 
 int fluids_setattrib(fluid_state *S, double *x, long flag)
 {
+  S->needsupdateflags = FLUIDS_FLAGSALL & BITWISENOT(flag);
   return _getsetattrib(S, x, flag, 's');
 }
 
@@ -174,15 +167,22 @@ int _getsetattrib(fluid_state *S, double *x, long flag, char op)
   return 0;
 }
 
-void _alloc_state(fluid_state *S, long modes, int op)
+void _alloc_state(fluid_state *S, long modes, int op, void *buffer)
 {
 #define A(a,s,m) do {							\
     if (modes & m) {							\
       if (op == ALLOC) {						\
 	S->a = (double*) realloc(S->a,(s)*sizeof(double));		\
+	S->ownsbufferflags |= m;					\
       }									\
       else if (op == DEALLOC) {						\
-	free(S->a);							\
+	if (S->ownsbufferflags & m) {					\
+	  free(S->a);							\
+	}								\
+      }									\
+      else if (op == MAPBUF) {						\
+	S->a = buffer;							\
+	S->ownsbufferflags &= BITWISENOT(m);				\
       }									\
     }									\
   } while (0)								\
@@ -221,24 +221,38 @@ int fluids_update(fluid_state *S, long flags)
   }
 }
 
-int fluids_c2p(fluid_state *S)
+int fluids_setcachevalid(fluid_state *S, long flags)
 {
-  switch (S->fluid) {
-  case FLUIDS_NRHYD:
-    return _nrhyd_c2p(S);
-  default:
-    return FLUIDS_ERROR_BADREQUEST;
-  }
+  /* Disables all needsupdateflags bits in `flags` so that they do not need to
+     be updated. */
+  S->needsupdateflags &= BITWISENOT(flags);
+  return 0;
 }
 
-int fluids_p2c(fluid_state *S)
+int fluids_setcacheinvalid(fluid_state *S, long flags)
 {
-  switch (S->fluid) {
-  case FLUIDS_NRHYD:
-    return _nrhyd_p2c(S);
-  default:
-    return FLUIDS_ERROR_BADREQUEST;
-  }
+  /* Enables all needsupdateflags bits in `flags` so that they will need to be
+     updated. */
+  S->needsupdateflags |= flags;
+  return 0;
+}
+
+int fluids_getlastupdate(fluid_state *S, long *flags)
+{
+  *flags = S->lastupdatedflags;
+  return 0;
+}
+
+int fluids_alloc(fluid_state *S, long flags)
+{
+  _alloc_state(S, flags, ALLOC, NULL);
+  return 0;
+}
+
+int fluids_mapbuffer(fluid_state *S, long flag, void *buffer)
+{
+  _alloc_state(S, flag, MAPBUF, buffer);
+  return 0;
 }
 
 int _nrhyd_c2p(fluid_state *S)
@@ -267,17 +281,46 @@ int _nrhyd_p2c(fluid_state *S)
   return 0;
 }
 
-double _nrhyd_cs2(fluid_state *S)
+void _nrhyd_cs2(fluid_state *S, double *cs2)
 {
   double gm = S->gammalawindex;
-  return gm * S->primitive[pre] / S->primitive[rho];
+  *cs2 = gm * S->primitive[pre] / S->primitive[rho];
 }
 
 int _nrhyd_update(fluid_state *S, long modes)
 {
+  /* It's only necessary to update the fields which were requested in `modes`,
+   * but also have their needsupdate bit enabled.
+   *
+   * modes:                    001101011
+   * needsupdateflags:         000010001
+   * modes becomes:            000000001 (modes &= S->needsupdateflags)
+   *
+   * After the update is finished, any bit in needsupdateflags which is enabled
+   * in modes should be set to zero. In other words:
+   *
+   * needsupdateflags:         000010001
+   * modes:                    000000001
+   * needsupdateflags becomes: 000010000 (needsupdateflags &= !modes)
+   */
+  modes &= S->needsupdateflags;
+
+  if ((S->needsupdateflags & FLUIDS_PRIMITIVE) &&
+      (S->needsupdateflags & FLUIDS_CONSERVED)) {
+    /* If both the primitive and conserved fields are out of date there's
+       nothing we can do. */
+    return FLUIDS_ERROR_INCOMPLETE;
+  }
+  else if (S->needsupdateflags & FLUIDS_CONSERVED) {
+    _nrhyd_p2c(S);
+  }
+  else if (S->needsupdateflags & FLUIDS_PRIMITIVE) {
+    _nrhyd_c2p(S);
+  }
+
   double *U = S->conserved;
   double *P = S->primitive;
-  double a, cs2;
+  double a=0.0, cs2=0.0;
 
   if (modes & FLUIDS_FLUX0) {
     S->flux[0][rho] = U[rho] * P[vx];
@@ -302,7 +345,7 @@ int _nrhyd_update(fluid_state *S, long modes)
   }
 
   if (modes & (FLUIDS_EVALSALL | FLUIDS_SOUNDSPEEDSQUARED)) {
-    cs2 = _nrhyd_cs2(S);
+    _nrhyd_cs2(S, &cs2);
     a = sqrt(cs2);
   }
 
@@ -358,6 +401,8 @@ int _nrhyd_update(fluid_state *S, long modes)
     _nrhyd_jacobian(S, 2);
   }
 
+  S->lastupdatedflags = modes;
+  S->needsupdateflags &= BITWISENOT(modes);
   return 0;
 }
 
