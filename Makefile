@@ -10,10 +10,13 @@ FLUIDSLIB_INSTALL ?= $(PREFIX)
 
 default : clib
 
-all : clib
+all : clib pyfluids
 
 clib : 
 	@make -C src
+
+pyfluids : clib
+	@make -C pyfluids
 
 install : clib
 	mkdir -p $(FLUIDSLIB_INSTALL)/include; cp include/* $(FLUIDSLIB_INSTALL)/include
@@ -22,4 +25,5 @@ install : clib
 
 clean :
 	@make -C src clean
+	@make -C pyfluids clean
 	@rm -rf lib bin include
