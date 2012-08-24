@@ -1,4 +1,6 @@
 
+cimport numpy as np
+
 cdef extern from "fluids.h":
     cdef int FLUIDS_LOCATION          = (1<<0)
     cdef int FLUIDS_PASSIVE           = (1<<1)
@@ -71,6 +73,7 @@ cdef extern from "fluids.h":
     int fluids_setcacheinvalid(fluid_state *S, long flags)
     int fluids_getlastupdate(fluid_state *S, long *flags)
     int fluids_alloc(fluid_state *S, long flags)
+    int fluids_dealloc(fluid_state *S, long flags)
     int fluids_mapbuffer(fluid_state *S, long flag, void *buffer)
     int fluids_setfluid(fluid_state *S, int fluid)
     int fluids_seteos(fluid_state *S, int eos)
@@ -93,6 +96,8 @@ cdef extern from "fluids.h":
 cdef class FluidState(object):
     cdef fluid_state *_c
     cdef _getattrib(self, double *val, int flag)
+    cpdef _map_bufferp(self, np.ndarray buf, int absindex)
+    cpdef _map_bufferc(self, np.ndarray buf, int absindex)
 
 cdef class RiemannSolver(object):
     cdef fluid_riemann *_c

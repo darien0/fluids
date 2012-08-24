@@ -1,6 +1,5 @@
 
 cimport fluids
-cimport numpy as np
 import numpy as np
 
 cdef class FluidState(object):
@@ -21,6 +20,24 @@ cdef class FluidState(object):
                                "must already be set")
         elif err != 0:
             raise RuntimeError("unknown error: " + str(err))
+
+    cpdef _map_bufferp(self, np.ndarray buf, int absindex):
+        fluids_dealloc(self._c, FLUIDS_PRIMITIVE)
+        fluids_mapbuffer(self._c, FLUIDS_PRIMITIVE,
+                         <double*>buf.data + absindex * 5)
+
+    cpdef _map_bufferc(self, np.ndarray buf, int absindex):
+        fluids_dealloc(self._c, FLUIDS_CONSERVED)
+        fluids_mapbuffer(self._c, FLUIDS_CONSERVED,
+                         <double*>buf.data + absindex * 5)
+
+    def _set_onlyprimvalid(self):
+        fluids_setcacheinvalid(self._c, FLUIDS_FLAGSALL)
+        fluids_setcachevalid(self._c, FLUIDS_PRIMITIVE)
+
+    def _set_onlyconsvalid(self):
+        fluids_setcacheinvalid(self._c, FLUIDS_FLAGSALL)
+        fluids_setcachevalid(self._c, FLUIDS_CONSERVED)
 
     property primitive:
         def __set__(self, np.ndarray[np.double_t] P):
@@ -64,6 +81,60 @@ cdef class FluidState(object):
         self._getattrib(<double*>L.data, flagL)
         self._getattrib(<double*>R.data, flagR)
         return L, R
+
+
+class state_buffer(np.ndarray):
+    """
+    A subclass of np.ndarray which invokes a hook on setting elements of the
+    array. The hook is sent the list of absolute indices which were modified in
+    the set operation, but with considering the whole of the last dimension as a
+    single index.
+    """
+    def __init__(self, *args, **kwargs):
+        super(state_buffer, self).__init__(*args, **kwargs)
+        self._mask = np.array(range(self.size)) / self.shape[-1]
+        self._mask.resize(self.shape)
+        self._hook = None
+
+    def __setitem__(self, *args, **kwargs):
+        self._hook(np.unique(self._mask[args[0]]))
+        super(state_buffer, self).__setitem__(*args, **kwargs)
+
+
+class FluidStateVector(object):
+    """
+    Class representing an array of FluidState's. The conserved and primitive
+    data of each FluidState are mapped over their own contiguous ndarray's. Set
+    operations on those ndarray's trigger the proper data invalidation on the
+    corresponding FluidState's.
+
+    WARNING: Care must be taken when the data buffers owned by this instances of
+    class are modified directly in C code. In that case, the set hooks will not
+    be invoked, and the FluidState will be invalid without knowing it.
+    """
+    def __init__(self, shape):
+
+        def priminvalid(ind):
+            for s in states.flat[ind]:
+                s._set_onlyprimvalid()
+        def consinvalid(ind):
+            for s in states.flat[ind]:
+                s._set_onlyconsvalid()
+
+        states = np.ndarray(shape=shape, dtype=FluidState)
+        primbuf = state_buffer(tuple(shape) + (5,))
+        consbuf = state_buffer(tuple(shape) + (5,))
+        primbuf._hook = priminvalid
+        consbuf._hook = consinvalid
+
+        for i in range(states.size):
+            states.flat[i] = FluidState()
+            states.flat[i]._map_bufferp(primbuf, i)
+            states.flat[i]._map_bufferc(consbuf, i)
+
+        self._states = states
+        self._primbuf = primbuf
+        self._consbuf = consbuf
 
 
 cdef class RiemannSolver(object):
