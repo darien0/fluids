@@ -12,6 +12,7 @@ cdef class FluidState(object):
     def __init__(self):
         fluids_setfluid(self._c, FLUIDS_NRHYD)
         fluids_alloc(self._c, FLUIDS_FLAGSALL)
+        self._buffers = [ ]
 
     cdef _getattrib(self, double *val, int flag):
         cdef int err = fluids_getattrib(self._c, val, flag)
@@ -25,11 +26,13 @@ cdef class FluidState(object):
         fluids_dealloc(self._c, FLUIDS_PRIMITIVE)
         fluids_mapbuffer(self._c, FLUIDS_PRIMITIVE,
                          <double*>buf.data + absindex * 5)
+        self._buffers.append(buf)
 
     cpdef _map_bufferc(self, np.ndarray buf, int absindex):
         fluids_dealloc(self._c, FLUIDS_CONSERVED)
         fluids_mapbuffer(self._c, FLUIDS_CONSERVED,
                          <double*>buf.data + absindex * 5)
+        self._buffers.append(buf)
 
     def _set_onlyprimvalid(self):
         fluids_setcacheinvalid(self._c, FLUIDS_FLAGSALL)
@@ -38,6 +41,12 @@ cdef class FluidState(object):
     def _set_onlyconsvalid(self):
         fluids_setcacheinvalid(self._c, FLUIDS_FLAGSALL)
         fluids_setcachevalid(self._c, FLUIDS_CONSERVED)
+
+    def _update_prim(self):
+        fluids_update(self._c, FLUIDS_PRIMITIVE)
+
+    def _update_cons(self):
+        fluids_update(self._c, FLUIDS_CONSERVED)
 
     property primitive:
         def __set__(self, np.ndarray[np.double_t] P):
@@ -94,11 +103,16 @@ class state_buffer(np.ndarray):
         super(state_buffer, self).__init__(*args, **kwargs)
         self._mask = np.array(range(self.size)) / self.shape[-1]
         self._mask.resize(self.shape)
-        self._hook = None
+        self._sethook = None
+        self._gethook = None
 
     def __setitem__(self, *args, **kwargs):
-        self._hook(np.unique(self._mask[args[0]]))
+        self._sethook(np.unique(self._mask[args[0]]))
         super(state_buffer, self).__setitem__(*args, **kwargs)
+
+    def __getitem__(self, *args, **kwargs):
+        self._gethook(np.unique(self._mask[args[0]]))
+        return super(state_buffer, self).__getitem__(*args, **kwargs)
 
 
 class FluidStateVector(object):
@@ -115,17 +129,25 @@ class FluidStateVector(object):
     def __init__(self, shape):
 
         def priminvalid(ind):
-            for s in states.flat[ind]:
+            for s in self._states.flat[ind]:
                 s._set_onlyprimvalid()
         def consinvalid(ind):
-            for s in states.flat[ind]:
+            for s in self._states.flat[ind]:
                 s._set_onlyconsvalid()
+        def primrefresh(ind):
+            for s in self._states.flat[ind]:
+                s._update_prim()
+        def consrefresh(ind):
+            for s in self._states.flat[ind]:
+                s._update_cons()
 
         states = np.ndarray(shape=shape, dtype=FluidState)
         primbuf = state_buffer(tuple(shape) + (5,))
         consbuf = state_buffer(tuple(shape) + (5,))
-        primbuf._hook = priminvalid
-        consbuf._hook = consinvalid
+        primbuf._sethook = priminvalid
+        consbuf._sethook = consinvalid
+        primbuf._gethook = primrefresh
+        consbuf._gethook = consrefresh
 
         for i in range(states.size):
             states.flat[i] = FluidState()

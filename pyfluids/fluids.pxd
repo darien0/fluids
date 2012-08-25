@@ -98,6 +98,7 @@ cdef class FluidState(object):
     cdef _getattrib(self, double *val, int flag)
     cpdef _map_bufferp(self, np.ndarray buf, int absindex)
     cpdef _map_bufferc(self, np.ndarray buf, int absindex)
+    cdef list _buffers
 
 cdef class RiemannSolver(object):
     cdef fluid_riemann *_c
