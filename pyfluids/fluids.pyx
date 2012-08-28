@@ -114,7 +114,6 @@ class state_buffer(np.ndarray):
         self._gethook(np.unique(self._mask[args[0]]))
         return super(state_buffer, self).__getitem__(*args, **kwargs)
 
-
 class FluidStateVector(object):
     """
     Class representing an array of FluidState's. The conserved and primitive
@@ -127,11 +126,11 @@ class FluidStateVector(object):
     be invoked, and the FluidState will be invalid without knowing it.
     """
     def __init__(self, shape):
-
-        def priminvalid(ind):
+        """
+        def primvalid(ind):
             for s in self._states.flat[ind]:
                 s._set_onlyprimvalid()
-        def consinvalid(ind):
+        def consvalid(ind):
             for s in self._states.flat[ind]:
                 s._set_onlyconsvalid()
         def primrefresh(ind):
@@ -140,14 +139,19 @@ class FluidStateVector(object):
         def consrefresh(ind):
             for s in self._states.flat[ind]:
                 s._update_cons()
-
+                """
         states = np.ndarray(shape=shape, dtype=FluidState)
+        primbuf = np.zeros(tuple(shape) + (5,))
+        consbuf = np.zeros(tuple(shape) + (5,))
+
+        """
         primbuf = state_buffer(tuple(shape) + (5,))
         consbuf = state_buffer(tuple(shape) + (5,))
-        primbuf._sethook = priminvalid
-        consbuf._sethook = consinvalid
+        primbuf._sethook = primvalid
+        consbuf._sethook = consvalid
         primbuf._gethook = primrefresh
         consbuf._gethook = consrefresh
+        """
 
         for i in range(states.size):
             states.flat[i] = FluidState()
@@ -157,6 +161,26 @@ class FluidStateVector(object):
         self._states = states
         self._primbuf = primbuf
         self._consbuf = consbuf
+
+    def get_primitive(self):
+        for s in self._states:
+            s._update_prim()
+        return self._primbuf.copy()
+
+    def set_primitive(self, prim):
+        for s in self._states:
+            s._set_onlyprimvalid()
+        self._primbuf[...] = prim
+
+    def get_conserved(self):
+        for s in self._states:
+            s._update_cons()
+        return self._consbuf.copy()
+
+    def set_conserved(self, cons):
+        for s in self._states:
+            s._set_onlyconsvalid()
+        self._consbuf[...] = cons
 
 
 cdef class RiemannSolver(object):
