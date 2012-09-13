@@ -92,66 +92,15 @@ cdef class FluidState(object):
         return L, R
 
 
-class state_buffer(np.ndarray):
-    """
-    A subclass of np.ndarray which invokes a hook on setting elements of the
-    array. The hook is sent the list of absolute indices which were modified in
-    the set operation, but with considering the whole of the last dimension as a
-    single index.
-    """
-    def __init__(self, *args, **kwargs):
-        super(state_buffer, self).__init__(*args, **kwargs)
-        self._mask = np.array(range(self.size)) / self.shape[-1]
-        self._mask.resize(self.shape)
-        self._sethook = None
-        self._gethook = None
-
-    def __setitem__(self, *args, **kwargs):
-        self._sethook(np.unique(self._mask[args[0]]))
-        super(state_buffer, self).__setitem__(*args, **kwargs)
-
-    def __getitem__(self, *args, **kwargs):
-        self._gethook(np.unique(self._mask[args[0]]))
-        return super(state_buffer, self).__getitem__(*args, **kwargs)
-
 class FluidStateVector(object):
     """
     Class representing an array of FluidState's. The conserved and primitive
-    data of each FluidState are mapped over their own contiguous ndarray's. Set
-    operations on those ndarray's trigger the proper data invalidation on the
-    corresponding FluidState's.
-
-    WARNING: Care must be taken when the data buffers owned by this instances of
-    class are modified directly in C code. In that case, the set hooks will not
-    be invoked, and the FluidState will be invalid without knowing it.
+    data of each FluidState are mapped over their own contiguous ndarray's.
     """
     def __init__(self, shape):
-        """
-        def primvalid(ind):
-            for s in self._states.flat[ind]:
-                s._set_onlyprimvalid()
-        def consvalid(ind):
-            for s in self._states.flat[ind]:
-                s._set_onlyconsvalid()
-        def primrefresh(ind):
-            for s in self._states.flat[ind]:
-                s._update_prim()
-        def consrefresh(ind):
-            for s in self._states.flat[ind]:
-                s._update_cons()
-                """
         states = np.ndarray(shape=shape, dtype=FluidState)
         primbuf = np.zeros(tuple(shape) + (5,))
         consbuf = np.zeros(tuple(shape) + (5,))
-
-        """
-        primbuf = state_buffer(tuple(shape) + (5,))
-        consbuf = state_buffer(tuple(shape) + (5,))
-        primbuf._sethook = primvalid
-        consbuf._sethook = consvalid
-        primbuf._gethook = primrefresh
-        consbuf._gethook = consrefresh
-        """
 
         for i in range(states.size):
             states.flat[i] = FluidState()
