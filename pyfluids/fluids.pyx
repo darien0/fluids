@@ -1,5 +1,5 @@
 
-cimport fluids
+cimport pyfluids.fluids as fluids
 import numpy as np
 
 cdef class FluidState(object):
@@ -112,22 +112,22 @@ class FluidStateVector(object):
         self._consbuf = consbuf
 
     def get_primitive(self):
-        for s in self._states:
+        for s in self._states.flat:
             s._update_prim()
         return self._primbuf.copy()
 
     def set_primitive(self, prim):
-        for s in self._states:
+        for s in self._states.flat:
             s._set_onlyprimvalid()
         self._primbuf[...] = prim
 
     def get_conserved(self):
-        for s in self._states:
+        for s in self._states.flat:
             s._update_cons()
         return self._consbuf.copy()
 
     def set_conserved(self, cons):
-        for s in self._states:
+        for s in self._states.flat:
             s._set_onlyconsvalid()
         self._consbuf[...] = cons
 

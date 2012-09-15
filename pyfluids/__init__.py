@@ -1,3 +1,2 @@
 
-
-from fluids import *
+from pyfluids.fluids import *
