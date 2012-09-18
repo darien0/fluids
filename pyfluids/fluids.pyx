@@ -12,6 +12,14 @@ cdef class FluidState(object):
     def __init__(self):
         fluids_setfluid(self._c, FLUIDS_NRHYD)
         fluids_alloc(self._c, FLUIDS_FLAGSALL)
+        # Reduced memory example:
+        """
+        fluids_alloc(self._c,
+                     FLUIDS_CONSERVED|
+                     FLUIDS_PRIMITIVE|
+                     FLUIDS_FLUXALL|
+                     FLUIDS_EVALSALL)
+        """
         self._buffers = [ ]
 
     cdef _getattrib(self, double *val, int flag):
