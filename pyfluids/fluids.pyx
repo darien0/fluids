@@ -90,6 +90,11 @@ cdef class FluidState(object):
         self._getattrib(<double*>L.data, flag)
         return L
 
+    def soundspeed(self):
+        cdef double cs2
+        self._getattrib(&cs2, FLUIDS_SOUNDSPEEDSQUARED)
+        return cs2**0.5
+
     def eigenvectors(self, dim=0):
         cdef int flagL = [FLUIDS_LEVECS0, FLUIDS_LEVECS1, FLUIDS_LEVECS2][dim]
         cdef int flagR = [FLUIDS_REVECS0, FLUIDS_REVECS1, FLUIDS_REVECS2][dim]
