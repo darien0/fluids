@@ -171,30 +171,26 @@ class FluidStateVector(object):
     def __getitem__(self, *args):
         return self._states.__getitem__(*args)
 
-    @property
-    def primitive(self):
+    def get_primitive(self):
         P = np.zeros([self._states.size, self._np])
         for n, S in enumerate(self._states.flat):
             P[n] = S.primitive
         return P.reshape(self._shape + (self._np,))
 
-    @primitive.setter
-    def primitive(self, P):
+    def set_primitive(self, P):
         if P.shape != self._shape + (self._np,):
             raise ValueError("wrong shape input array")
         Q = P.reshape([self._states.size, self._np])
         for n, S in enumerate(self._states.flat):
             S.primitive = Q[n]
 
-    @property
-    def conserved(self):
+    def get_conserved(self):
         U = np.zeros([self._states.size, self._np])
         for n, S in enumerate(self._states.flat):
             U[n] = S.conserved()
         return U.reshape(self._shape + (self._np,))
 
-    @conserved.setter
-    def conserved(self, U):
+    def set_conserved(self, U):
         if U.shape != self._shape + (self._np,):
             raise ValueError("wrong shape input array")
         V = U.reshape([self._states.size, self._np])
