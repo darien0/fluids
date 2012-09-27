@@ -2,181 +2,193 @@
 cimport pyfluids.fluids as fluids
 import numpy as np
 
-cdef class FluidState(object):
+
+cdef class FluidDescriptor(object):
+    """
+    Class that describes the microphysics (equation of state) and required
+    buffer sizes for a FluidState.
+    """
     def __cinit__(self):
-        self._c = fluids_new()
+        self._c = fluids_descr_new()
 
     def __dealloc__(self):
-        fluids_del(self._c)
+        fluids_descr_del(self._c)
 
     def __init__(self):
-        fluids_setfluid(self._c, FLUIDS_NRHYD)
-        fluids_alloc(self._c, FLUIDS_FLAGSALL)
-        # Reduced memory example:
-        """
-        fluids_alloc(self._c,
-                     FLUIDS_CONSERVED|
-                     FLUIDS_PRIMITIVE|
-                     FLUIDS_FLUXALL|
-                     FLUIDS_EVALSALL)
-        """
-        self._buffers = [ ]
+        fluids_descr_setfluid(self._c, FLUIDS_NRHYD)
+        fluids_descr_setgamma(self._c, 1.4);
+        fluids_descr_seteos(self._c, FLUIDS_EOS_GAMMALAW);
 
-    cdef _getattrib(self, double *val, int flag):
-        cdef int err = fluids_getattrib(self._c, val, flag)
-        if err == FLUIDS_ERROR_INCOMPLETE:
-            raise RuntimeError("incomplete state: primitive or conserved "
-                               "must already be set")
-        elif err != 0:
-            raise RuntimeError("unknown error: " + str(err))
+    property nprimitive:
+        def __get__(self):
+            return fluids_descr_getncomp(self._c, FLUIDS_PRIMITIVE)
+    property npassive:
+        def __get__(self):
+            return fluids_descr_getncomp(self._c, FLUIDS_PASSIVE)
+    property ngravity:
+        def __get__(self):
+            return fluids_descr_getncomp(self._c, FLUIDS_GRAVITY)
+    property nmagnetic:
+        def __get__(self):
+            return fluids_descr_getncomp(self._c, FLUIDS_MAGNETIC)
+    property nlocation:
+        def __get__(self):
+            return fluids_descr_getncomp(self._c, FLUIDS_LOCATION)
 
-    cpdef _map_bufferp(self, np.ndarray buf, int absindex):
-        fluids_dealloc(self._c, FLUIDS_PRIMITIVE)
-        fluids_mapbuffer(self._c, FLUIDS_PRIMITIVE,
-                         <double*>buf.data + absindex * 5)
-        self._buffers.append(buf)
 
-    cpdef _map_bufferc(self, np.ndarray buf, int absindex):
-        fluids_dealloc(self._c, FLUIDS_CONSERVED)
-        fluids_mapbuffer(self._c, FLUIDS_CONSERVED,
-                         <double*>buf.data + absindex * 5)
-        self._buffers.append(buf)
+cdef class FluidState(object):
+    """
+    Class that holds fluid variables, and caches them for future calls. These
+    objects will accumulate lots of memory unless the cache is disabled (which
+    it is by default), or the erase_cache() method is used after each time a
+    member function is invoked.
+    """
+    def __cinit__(self):
+        self._c = fluids_state_new()
 
-    def _set_onlyprimvalid(self):
-        fluids_setcacheinvalid(self._c, FLUIDS_FLAGSALL)
-        fluids_setcachevalid(self._c, FLUIDS_PRIMITIVE)
+    def __dealloc__(self):
+        fluids_state_del(self._c)
 
-    def _set_onlyconsvalid(self):
-        fluids_setcacheinvalid(self._c, FLUIDS_FLAGSALL)
-        fluids_setcachevalid(self._c, FLUIDS_CONSERVED)
-
-    def _update_prim(self):
-        fluids_update(self._c, FLUIDS_PRIMITIVE)
-
-    def _update_cons(self):
-        fluids_update(self._c, FLUIDS_CONSERVED)
+    def __init__(self, FluidDescriptor D):
+        fluids_state_setdescr(self._c, D._c)
+        self._np = D.nprimitive
+        self._ns = D.npassive
+        self._ng = D.ngravity
+        self._nm = D.nmagnetic
+        self._nl = D.nlocation
+        self._disable_cache = 1
 
     property primitive:
-        def __set__(self, np.ndarray[np.double_t] P):
-            # check P has length 5
-            fluids_setattrib(self._c, <double*>P.data, FLUIDS_PRIMITIVE)
         def __get__(self):
-            # get length of primitive here
-            cdef np.ndarray[np.double_t] P = np.zeros(5)
-            self._getattrib(<double*>P.data, FLUIDS_PRIMITIVE)
-            return P
+            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
+            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_PRIMITIVE)
+            return x
+        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
+            if x.size != self._np: raise ValueError("wrong size input array")
+            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_PRIMITIVE)
+    property passive:
+        def __get__(self):
+            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._ns)
+            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_PASSIVE)
+            return x
+        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
+            if x.size != self._ns: raise ValueError("wrong size input array")
+            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_PASSIVE)
+    property gravity:
+        def __get__(self):
+            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._ng)
+            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_GRAVITY)
+            return x
+        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
+            if x.size != self._ng: raise ValueError("wrong size input array")
+            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_GRAVITY)
+    property magnetic:
+        def __get__(self):
+            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._nm)
+            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_MAGNETIC)
+            return x
+        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
+            if x.size != self._ng: raise ValueError("wrong size input array")
+            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_MAGNETIC)
+    property location:
+        def __get__(self):
+            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._nl)
+            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_LOCATION)
+            return x
+        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
+            if x.size != self._ng: raise ValueError("wrong size input array")
+            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_LOCATION)
 
-    property conserved:
-        def __set__(self, np.ndarray[np.double_t] U):
-            # check U has length 5
-            fluids_setattrib(self._c, <double*>U.data, FLUIDS_CONSERVED)
-        def __get__(self):
-            # get length of primitive here
-            cdef np.ndarray[np.double_t] U = np.zeros(5)
-            self._getattrib(<double*>U.data, FLUIDS_CONSERVED)
-            return U
+    def from_conserved(self, np.ndarray[np.double_t,ndim=1] x):
+        if x.size != self._np: raise ValueError("wrong size input array")
+        fluids_state_fromcons(self._c, <double*>x.data, FLUIDS_CACHE_RESET)
+        if self._disable_cache: fluids_state_erasecache(self._c)
 
-    property gammalawindex:
-        def __set__(self, double gam):
-            fluids_setattrib(self._c, &gam, FLUIDS_GAMMALAWINDEX)
-        def __get__(self):
-            cdef double gam
-            self._getattrib(&gam, FLUIDS_GAMMALAWINDEX)
-            return gam
+    def conserved(self):
+        cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
+        fluids_state_derive(self._c, <double*>x.data, FLUIDS_CONSERVED)
+        if self._disable_cache: fluids_state_erasecache(self._c)
+        return x
 
     def eigenvalues(self, dim=0):
         cdef int flag = [FLUIDS_EVAL0, FLUIDS_EVAL1, FLUIDS_EVAL2][dim]
-        cdef np.ndarray[np.double_t] L = np.zeros(5)
-        self._getattrib(<double*>L.data, flag)
-        return L
+        cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
+        fluids_state_derive(self._c, <double*>x.data, flag)
+        if self._disable_cache: fluids_state_erasecache(self._c)
+        return x
 
-    def soundspeed(self):
+    def left_eigenvectors(self, dim=0):
+        cdef int flag = [FLUIDS_LEVECS0, FLUIDS_LEVECS1, FLUIDS_LEVECS2][dim]
+        cdef np.ndarray[np.double_t,ndim=2] x = np.zeros([self._np]*2)
+        fluids_state_derive(self._c, <double*>x.data, flag)
+        if self._disable_cache: fluids_state_erasecache(self._c)
+        return x
+
+    def right_eigenvectors(self, dim=0):
+        cdef int flag = [FLUIDS_REVECS0, FLUIDS_REVECS1, FLUIDS_REVECS2][dim]
+        cdef np.ndarray[np.double_t,ndim=2] x = np.zeros([self._np]*2)
+        fluids_state_derive(self._c, <double*>x.data, flag)
+        if self._disable_cache: fluids_state_erasecache(self._c)
+        return x
+
+    def sound_speed(self):
         cdef double cs2
-        self._getattrib(&cs2, FLUIDS_SOUNDSPEEDSQUARED)
+        fluids_state_derive(self._c, &cs2, FLUIDS_SOUNDSPEEDSQUARED)
+        if self._disable_cache: fluids_state_erasecache(self._c)
         return cs2**0.5
 
-    def eigenvectors(self, dim=0):
-        cdef int flagL = [FLUIDS_LEVECS0, FLUIDS_LEVECS1, FLUIDS_LEVECS2][dim]
-        cdef int flagR = [FLUIDS_REVECS0, FLUIDS_REVECS1, FLUIDS_REVECS2][dim]
-        cdef np.ndarray[np.double_t,ndim=2] L = np.zeros((5,5))
-        cdef np.ndarray[np.double_t,ndim=2] R = np.zeros((5,5))
-        self._getattrib(<double*>L.data, flagL)
-        self._getattrib(<double*>R.data, flagR)
-        return L, R
+    def erase_cache(self):
+        fluids_state_erasecache(self._c)
+
+    def enable_cache(self):
+        self._disable_cache = 0
+
+    def disable_cache(self):
+        self._disable_cache = 1
 
 
 class FluidStateVector(object):
     """
-    Class representing an array of FluidState's. The conserved and primitive
-    data of each FluidState are mapped over their own contiguous ndarray's.
+    Class that holds many fluid states in a Numpy array.
     """
-    def __init__(self, shape):
-        states = np.ndarray(shape=shape, dtype=FluidState)
-        primbuf = np.zeros(tuple(shape) + (5,))
-        consbuf = np.zeros(tuple(shape) + (5,))
+    def __init__(self, shape, descr):
+        self._descr = descr
+        self._states = np.ndarray(shape=shape, dtype=FluidState)
+        self._np = descr.nprimitive
+        self._shape = tuple(shape)
+        for i in range(self._states.size):
+            self._states.flat[i] = FluidState(self._descr)
+        self.primitive = np.zeros(self._shape + (self._np,))
 
-        for i in range(states.size):
-            states.flat[i] = FluidState()
-            states.flat[i]._map_bufferp(primbuf, i)
-            states.flat[i]._map_bufferc(consbuf, i)
+    def __getitem__(self, *args):
+        return self._states.__getitem__(*args)
 
-        self._states = states
-        self._primbuf = primbuf
-        self._consbuf = consbuf
+    @property
+    def primitive(self):
+        P = np.zeros([self._states.size, self._np])
+        for n, S in enumerate(self._states.flat):
+            P[n] = S.primitive
+        return P.reshape(self._shape + (self._np,))
 
-    def get_primitive(self):
-        for s in self._states.flat:
-            s._update_prim()
-        return self._primbuf.copy()
+    @primitive.setter
+    def primitive(self, P):
+        if P.shape != self._shape + (self._np,):
+            raise ValueError("wrong shape input array")
+        Q = P.reshape([self._states.size, self._np])
+        for n, S in enumerate(self._states.flat):
+            S.primitive = Q[n]
 
-    def set_primitive(self, prim):
-        for s in self._states.flat:
-            s._set_onlyprimvalid()
-        self._primbuf[...] = prim
+    @property
+    def conserved(self):
+        U = np.zeros([self._states.size, self._np])
+        for n, S in enumerate(self._states.flat):
+            U[n] = S.conserved()
+        return U.reshape(self._shape + (self._np,))
 
-    def get_conserved(self):
-        for s in self._states.flat:
-            s._update_cons()
-        return self._consbuf.copy()
-
-    def set_conserved(self, cons):
-        for s in self._states.flat:
-            s._set_onlyconsvalid()
-        self._consbuf[...] = cons
-
-
-cdef class RiemannSolver(object):
-    def __cinit__(self):
-        self._c = fluids_riemann_new()
-        self.SL = None
-        self.SR = None
-
-    def __dealloc__(self):
-        fluids_riemann_del(self._c)
-
-    def __init__(self):
-        fluids_riemann_setsolver(self._c, FLUIDS_RIEMANN_EXACT)
-
-    property solver:
-        def __set__(self, val):
-            solvers = {'hll': FLUIDS_RIEMANN_HLL,
-                       'hllc': FLUIDS_RIEMANN_HLLC,
-                       'exact': FLUIDS_RIEMANN_EXACT,}
-            fluids_riemann_setsolver(self._c, solvers[val])
-
-    def set_states(self, FluidState SL, FluidState SR):
-        assert SL.gammalawindex == SR.gammalawindex
-        self.SL = SL # hold onto these so they're not deleted
-        self.SR = SR
-        fluids_riemann_setdim(self._c, 0)
-        fluids_riemann_setstateL(self._c, SL._c)
-        fluids_riemann_setstateR(self._c, SR._c)
-        fluids_riemann_execute(self._c)
-
-    def sample(self, double s):
-        if self.SL is None or self.SR is None:
-            raise ValueError("solver needs a need a left and right state")
-        cdef FluidState S = FluidState()
-        S.gammalawindex = self.SL.gammalawindex
-        fluids_riemann_sample(self._c, S._c, s) # sets S.primitive
-        return S
+    @conserved.setter
+    def conserved(self, U):
+        if U.shape != self._shape + (self._np,):
+            raise ValueError("wrong shape input array")
+        V = U.reshape([self._states.size, self._np])
+        for n, S in enumerate(self._states.flat):
+            S.from_conserved(V[n])
