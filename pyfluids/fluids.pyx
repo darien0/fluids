@@ -26,6 +26,13 @@ cdef class FluidDescriptor(object):
         fluids_descr_setgamma(self._c, 1.4);
         fluids_descr_seteos(self._c, FLUIDS_EOS_GAMMALAW);
 
+    property gammalawindex:
+        def __get__(self):
+            cdef double gam
+            fluids_descr_getgamma(self._c, &gam)
+            return gam
+        def __set__(self, val):
+            fluids_descr_setgamma(self._c, val)
     property nprimitive:
         def __get__(self):
             return fluids_descr_getncomp(self._c, FLUIDS_PRIMITIVE)
@@ -170,6 +177,18 @@ class FluidStateVector(object):
 
     def __getitem__(self, *args):
         return self._states.__getitem__(*args)
+
+    @property
+    def shape(self):
+        return self._states.shape
+
+    @property
+    def size(self):
+        return self._states.size
+
+    @property
+    def flat(self):
+        return self._states.flat
 
     def get_primitive(self):
         P = np.zeros([self._states.size, self._np])
