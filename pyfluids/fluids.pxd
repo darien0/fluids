@@ -105,10 +105,12 @@ cdef extern from "fluids.h":
     int fluids_riemn_execute(fluids_riemn *R)
     int fluids_riemn_sample(fluids_riemn *R, fluids_state *S, double s)
     int fluids_riemn_setsolver(fluids_riemn *R, int solver)
+    int fluids_riemn_getsolver(fluids_riemn *R, int *solver)
 
 
 cdef class FluidDescriptor(object):
     cdef fluids_descr *_c
+
 
 cdef class FluidState(object):
     cdef fluids_state *_c
@@ -118,10 +120,11 @@ cdef class FluidState(object):
     cdef int _nm
     cdef int _nl
     cdef int _disable_cache
+    cdef FluidDescriptor _descr
 
-"""
+
 cdef class RiemannSolver(object):
-    cdef fluids_riemn *_R
+    cdef fluids_riemn *_c
     cdef FluidState SL
     cdef FluidState SR
-"""
+

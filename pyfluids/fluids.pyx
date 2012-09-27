@@ -2,6 +2,13 @@
 cimport pyfluids.fluids as fluids
 import numpy as np
 
+def inverse_dict(d):
+    return dict((v,k) for k, v in d.iteritems())
+
+_riemannsolvers  = {"hll"    : FLUIDS_RIEMANN_HLL,
+                    "hllc"   : FLUIDS_RIEMANN_HLLC,
+                    "exact"  : FLUIDS_RIEMANN_EXACT}
+_riemannsolvers_i = inverse_dict(_riemannsolvers)
 
 cdef class FluidDescriptor(object):
     """
@@ -57,6 +64,7 @@ cdef class FluidState(object):
         self._nm = D.nmagnetic
         self._nl = D.nlocation
         self._disable_cache = 1
+        self._descr = D
 
     property primitive:
         def __get__(self):
@@ -192,3 +200,44 @@ class FluidStateVector(object):
         V = U.reshape([self._states.size, self._np])
         for n, S in enumerate(self._states.flat):
             S.from_conserved(V[n])
+
+
+cdef class RiemannSolver(object):
+    """
+    Class which represents a two-state riemann solver.
+    """
+    def __cinit__(self):
+        self._c = fluids_riemn_new()
+        self.SL = None
+        self.SR = None
+
+    def __dealloc__(self):
+        fluids_riemn_del(self._c)
+
+    def __init__(self):
+        fluids_riemn_setsolver(self._c, FLUIDS_RIEMANN_EXACT)
+
+    property solver:
+        def __get__(self):
+            cdef int solver
+            fluids_riemn_getsolver(self._c, &solver)
+            return _riemannsolvers_i[solver]
+        def __set__(self, val):
+            fluids_riemn_setsolver(self._c, _riemannsolvers[val])
+
+    def set_states(self, FluidState SL, FluidState SR):
+        if SL._descr is not SR._descr:
+            raise ValueError("different fluid descriptor on left and right")
+        self.SL = SL # hold onto these so they're not deleted
+        self.SR = SR
+        fluids_riemn_setdim(self._c, 0)
+        fluids_riemn_setstateL(self._c, SL._c)
+        fluids_riemn_setstateR(self._c, SR._c)
+        fluids_riemn_execute(self._c)
+
+    def sample(self, double s):
+        if self.SL is None or self.SR is None:
+            raise ValueError("solver needs a need a left and right state")
+        cdef FluidState S = FluidState(self.SL._descr)
+        fluids_riemn_sample(self._c, S._c, s) # sets S.primitive
+        return S

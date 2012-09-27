@@ -30,8 +30,9 @@ class RiemannApp(HasTraits):
         return np.linspace(-2, 2, self.npoints)
 
     def _get_soln(self):
-        SL = pyfluids.FluidState()
-        SR = pyfluids.FluidState()
+        descr = pyfluids.FluidDescriptor()
+        SL = pyfluids.FluidState(descr)
+        SR = pyfluids.FluidState(descr)
 
         SL.primitive = np.array([self.rhoL, self.preL, 0, 0, 0])
         SR.primitive = np.array([self.rhoR, self.preR, 0, 0, 0])
