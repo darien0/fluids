@@ -63,14 +63,18 @@ cdef extern from "fluids.h":
     int FLUIDS_RIEMANN_HLLC      = -71
     int FLUIDS_RIEMANN_EXACT     = -72
 
-    int FLUIDS_CACHE_NOTOUCH     = -73
-    int FLUIDS_CACHE_RESET       = -74
-    int FLUIDS_CACHE_ERASE       = -75
+    int FLUIDS_CACHE_DEFAULT     = -73
+    int FLUIDS_CACHE_NOTOUCH     = -74
+    int FLUIDS_CACHE_CREATE      = -75
+    int FLUIDS_CACHE_STEAL       = -76
+    int FLUIDS_CACHE_RESET       = -77
+    int FLUIDS_CACHE_ERASE       = -78
 
     struct fluids_descr
     struct fluids_cache
     struct fluids_state
     struct fluids_riemn
+
 
     # fluids_descr member functions
     fluids_descr *fluids_descr_new()
@@ -85,16 +89,17 @@ cdef extern from "fluids.h":
     int fluids_descr_setgamma(fluids_descr *D, double gam)
     int fluids_descr_getncomp(fluids_descr *D, long flag)
 
+
     # fluids_state member functions
     fluids_state *fluids_state_new()
     int fluids_state_del(fluids_state *S)
     int fluids_state_setdescr(fluids_state *S, fluids_descr *D)
-    int fluids_state_resetcache(fluids_state *S)
-    int fluids_state_erasecache(fluids_state *S)
     int fluids_state_getattr(fluids_state *S, double *x, long flag)
     int fluids_state_setattr(fluids_state *S, double *x, long flag)
-    int fluids_state_fromcons(fluids_state *S, double *U, int cachebehavior)
+    int fluids_state_fromcons(fluids_state *S, double *U, int cache)
     int fluids_state_derive(fluids_state *S, double *x, int flag)
+    int fluids_state_cache(fluids_state *S, int operation)
+
 
     # fluids_riemn member functions
     fluids_riemn *fluids_riemn_new()
@@ -122,13 +127,6 @@ cdef class FluidState(object):
     cdef int _disable_cache
     cdef FluidDescriptor _descr
 
-"""
-cdef class FluidStateVector(object):
-    cdef FluidDescriptor _descr
-    cdef np.ndarray[FluidDescriptor] _states
-    cdef int _np
-    cdef tuple _shape
-"""
 
 cdef class RiemannSolver(object):
     cdef fluids_riemn *_c

@@ -116,44 +116,38 @@ cdef class FluidState(object):
 
     def from_conserved(self, np.ndarray[np.double_t,ndim=1] x):
         if x.size != self._np: raise ValueError("wrong size input array")
-        fluids_state_fromcons(self._c, <double*>x.data, FLUIDS_CACHE_RESET)
-        if self._disable_cache: fluids_state_erasecache(self._c)
+        fluids_state_fromcons(self._c, <double*>x.data, FLUIDS_CACHE_DEFAULT)
 
     def conserved(self):
         cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
         fluids_state_derive(self._c, <double*>x.data, FLUIDS_CONSERVED)
-        if self._disable_cache: fluids_state_erasecache(self._c)
         return x
 
     def eigenvalues(self, dim=0):
         cdef int flag = [FLUIDS_EVAL0, FLUIDS_EVAL1, FLUIDS_EVAL2][dim]
         cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
         fluids_state_derive(self._c, <double*>x.data, flag)
-        if self._disable_cache: fluids_state_erasecache(self._c)
         return x
 
     def left_eigenvectors(self, dim=0):
         cdef int flag = [FLUIDS_LEVECS0, FLUIDS_LEVECS1, FLUIDS_LEVECS2][dim]
         cdef np.ndarray[np.double_t,ndim=2] x = np.zeros([self._np]*2)
         fluids_state_derive(self._c, <double*>x.data, flag)
-        if self._disable_cache: fluids_state_erasecache(self._c)
         return x
 
     def right_eigenvectors(self, dim=0):
         cdef int flag = [FLUIDS_REVECS0, FLUIDS_REVECS1, FLUIDS_REVECS2][dim]
         cdef np.ndarray[np.double_t,ndim=2] x = np.zeros([self._np]*2)
-        fluids_state_derive(self._c, <double*>x.data, flag)
-        if self._disable_cache: fluids_state_erasecache(self._c)
+        fluids_state_derive(self._c, <double*>x.data, flag)       
         return x
 
     def sound_speed(self):
         cdef double cs2
         fluids_state_derive(self._c, &cs2, FLUIDS_SOUNDSPEEDSQUARED)
-        if self._disable_cache: fluids_state_erasecache(self._c)
         return cs2**0.5
 
     def erase_cache(self):
-        fluids_state_erasecache(self._c)
+        fluids_state_cache(self._c, FLUIDS_CACHE_ERASE)
 
     def enable_cache(self):
         self._disable_cache = 0
