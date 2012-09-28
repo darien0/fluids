@@ -163,9 +163,6 @@ cdef class FluidState(object):
 
 
 class FluidStateVector(object):
-    """
-    Class that holds many fluid states in a Numpy array.
-    """
     def __init__(self, shape, descr):
         self._descr = descr
         self._states = np.ndarray(shape=shape, dtype=FluidState)
@@ -215,6 +212,7 @@ class FluidStateVector(object):
         V = U.reshape([self._states.size, self._np])
         for n, S in enumerate(self._states.flat):
             S.from_conserved(V[n])
+
 
 
 cdef class RiemannSolver(object):

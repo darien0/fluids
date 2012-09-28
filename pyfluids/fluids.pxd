@@ -122,6 +122,13 @@ cdef class FluidState(object):
     cdef int _disable_cache
     cdef FluidDescriptor _descr
 
+"""
+cdef class FluidStateVector(object):
+    cdef FluidDescriptor _descr
+    cdef np.ndarray[FluidDescriptor] _states
+    cdef int _np
+    cdef tuple _shape
+"""
 
 cdef class RiemannSolver(object):
     cdef fluids_riemn *_c
