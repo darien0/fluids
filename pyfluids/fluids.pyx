@@ -108,7 +108,11 @@ cdef class FluidState(object):
         self._ng = D.ngravity
         self._nm = D.nmagnetic
         self._nl = D.nlocation
-
+        """
+    cpdef _map_bufferp(self, np.ndarray buf, int absindex):
+        fluids_state_mapbuffer(self._c, FLUIDS_PRIMITIVE, <double*>buf.data + absindex * self._np)
+        self._buffers.append(buf)
+        """
     property descriptor:
         def __get__(self):
             return self._descr
@@ -196,9 +200,15 @@ cdef class FluidStateVector(FluidState):
         self._gravity = np.zeros(shape + (self._ng,))
         self._magnetic = np.zeros(shape + (self._nm,))
         self._location = np.zeros(shape + (self._nl,))
-        for i in range(self._states.size):
-            self._states.flat[i] = FluidState(self.descriptor)
-
+        cdef FluidState S
+        cdef int n
+        """
+        for n in range(self._states.size):
+            S = FluidState(self.descriptor)
+            fluids_state_mapbuffer(S._c, <double*>self._primitive.data,
+                                   FLUIDS_PRIMITIVE)
+            self._states.flat[n] = S
+            """
     property states:
         def __get__(self):
             return self._states

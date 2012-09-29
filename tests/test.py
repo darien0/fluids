@@ -23,5 +23,6 @@ print fluid.descriptor.eos
 
 print fluid.primitive.shape
 print fluid.states.shape
+print fluid.states[0,0].primitive
 
 fluid.primitive[...] = np.zeros([10,10,5])

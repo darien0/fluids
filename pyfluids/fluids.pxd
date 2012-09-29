@@ -2,7 +2,7 @@
 cimport numpy as np
 
 cdef extern from "fluids.h":
-    enum BitFlags:
+    enum:
         FLUIDS_PRIMITIVE         =  1<<1,
         FLUIDS_PASSIVE           =  1<<2,
         FLUIDS_GRAVITY           =  1<<3,
@@ -37,7 +37,7 @@ cdef extern from "fluids.h":
         FLUIDS_REVECSALL   = FLUIDS_REVECS0|FLUIDS_REVECS1|FLUIDS_REVECS2,
         FLUIDS_JACOBIANALL = FLUIDS_JACOBIAN0|FLUIDS_JACOBIAN1|FLUIDS_JACOBIAN2,
 
-    enum Modes:
+    enum:
         FLUIDS_SUCCESS,
         FLUIDS_ERROR_BADARG,
         FLUIDS_ERROR_BADREQUEST,
