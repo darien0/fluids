@@ -2,79 +2,83 @@
 cimport numpy as np
 
 cdef extern from "fluids.h":
-    int FLUIDS_PRIMITIVE         = (1<<1)
-    int FLUIDS_PASSIVE           = (1<<2)
-    int FLUIDS_GRAVITY           = (1<<3)
-    int FLUIDS_MAGNETIC          = (1<<4)
-    int FLUIDS_LOCATION          = (1<<5)
-    int FLUIDS_CONSERVED         = (1<<6)
-    int FLUIDS_FOURVELOCITY      = (1<<7)
-    int FLUIDS_FLUX0             = (1<<8)
-    int FLUIDS_FLUX1             = (1<<9)
-    int FLUIDS_FLUX2             = (1<<10)
-    int FLUIDS_EVAL0             = (1<<11)
-    int FLUIDS_EVAL1             = (1<<12)
-    int FLUIDS_EVAL2             = (1<<13)
-    int FLUIDS_LEVECS0           = (1<<14)
-    int FLUIDS_LEVECS1           = (1<<15)
-    int FLUIDS_LEVECS2           = (1<<16)
-    int FLUIDS_REVECS0           = (1<<17)
-    int FLUIDS_REVECS1           = (1<<18)
-    int FLUIDS_REVECS2           = (1<<19)
-    int FLUIDS_JACOBIAN0         = (1<<20)
-    int FLUIDS_JACOBIAN1         = (1<<21)
-    int FLUIDS_JACOBIAN2         = (1<<22)
-    int FLUIDS_SOUNDSPEEDSQUARED = (1<<23)
-    int FLUIDS_TEMPERATURE       = (1<<24)
-    int FLUIDS_SPECIFICENTHALPY  = (1<<25)
-    int FLUIDS_SPECIFICINTERNAL  = (1<<26)
-    int FLUIDS_FLAGSALL          = ((1<<30) - 1)
+    enum BitFlags:
+        FLUIDS_PRIMITIVE         =  1<<1,
+        FLUIDS_PASSIVE           =  1<<2,
+        FLUIDS_GRAVITY           =  1<<3,
+        FLUIDS_MAGNETIC          =  1<<4,
+        FLUIDS_LOCATION          =  1<<5,
+        FLUIDS_CONSERVED         =  1<<6,
+        FLUIDS_SOURCETERMS       =  1<<7,
+        FLUIDS_FOURVELOCITY      =  1<<8,
+        FLUIDS_FLUX0             =  1<<9,
+        FLUIDS_FLUX1             =  1<<10,
+        FLUIDS_FLUX2             =  1<<11,
+        FLUIDS_EVAL0             =  1<<12,
+        FLUIDS_EVAL1             =  1<<13,
+        FLUIDS_EVAL2             =  1<<14,
+        FLUIDS_LEVECS0           =  1<<15,
+        FLUIDS_LEVECS1           =  1<<16,
+        FLUIDS_LEVECS2           =  1<<17,
+        FLUIDS_REVECS0           =  1<<18,
+        FLUIDS_REVECS1           =  1<<19,
+        FLUIDS_REVECS2           =  1<<20,
+        FLUIDS_JACOBIAN0         =  1<<21,
+        FLUIDS_JACOBIAN1         =  1<<22,
+        FLUIDS_JACOBIAN2         =  1<<23,
+        FLUIDS_SOUNDSPEEDSQUARED =  1<<24,
+        FLUIDS_TEMPERATURE       =  1<<25,
+        FLUIDS_SPECIFICENTHALPY  =  1<<26,
+        FLUIDS_SPECIFICINTERNAL  =  1<<27,
+        FLUIDS_FLAGSALL          = (1<<30) - 1,
+        FLUIDS_FLUXALL     = FLUIDS_FLUX0|FLUIDS_FLUX1|FLUIDS_FLUX2,
+        FLUIDS_EVALSALL    = FLUIDS_EVAL0|FLUIDS_EVAL1|FLUIDS_EVAL2,
+        FLUIDS_LEVECSALL   = FLUIDS_LEVECS0|FLUIDS_LEVECS1|FLUIDS_LEVECS2,
+        FLUIDS_REVECSALL   = FLUIDS_REVECS0|FLUIDS_REVECS1|FLUIDS_REVECS2,
+        FLUIDS_JACOBIANALL = FLUIDS_JACOBIAN0|FLUIDS_JACOBIAN1|FLUIDS_JACOBIAN2,
 
-    int FLUIDS_FLUXALL           = (FLUIDS_FLUX0|FLUIDS_FLUX1|FLUIDS_FLUX2)
-    int FLUIDS_EVALSALL          = (FLUIDS_EVAL0|FLUIDS_EVAL1|FLUIDS_EVAL2)
-    int FLUIDS_LEVECSALL         = (FLUIDS_LEVECS0|FLUIDS_LEVECS1|FLUIDS_LEVECS2)
-    int FLUIDS_REVECSALL         = (FLUIDS_REVECS0|FLUIDS_REVECS1|FLUIDS_REVECS2)
-    int FLUIDS_JACOBIANALL       = (FLUIDS_JACOBIAN0|FLUIDS_JACOBIAN1|FLUIDS_JACOBIAN2)
+    enum Modes:
+        FLUIDS_SUCCESS,
+        FLUIDS_ERROR_BADARG,
+        FLUIDS_ERROR_BADREQUEST,
+        FLUIDS_ERROR_RIEMANN,
+        FLUIDS_ERROR_INCOMPLETE,
 
-    int FLUIDS_SCADV             = -41 # Scalar advection
-    int FLUIDS_SCBRG             = -42 # Burgers equation
-    int FLUIDS_SHWAT             = -43 # Shallow water equations
-    int FLUIDS_NRHYD             = -44 # Euler equations
-    int FLUIDS_SRHYD             = -45 # Special relativistic
-    int FLUIDS_URHYD             = -46 # Ultra relativistic
-    int FLUIDS_GRHYD             = -47 # General relativistic
-    int FLUIDS_NRMHD             = -48 # Magnetohydrodynamic (MHD)
-    int FLUIDS_SRMHD             = -49 # Special relativistic MHD
-    int FLUIDS_GRMHD             = -50 # General relativistic MHD
+        FLUIDS_COORD_CARTESIAN,
+        FLUIDS_COORD_SPHERICAL,
+        FLUIDS_COORD_CYLINDRICAL,
 
-    int FLUIDS_EOS_GAMMALAW      = -51
-    int FLUIDS_EOS_TABULATED     = -52
+        FLUIDS_SCADV, # Scalar advection
+        FLUIDS_SCBRG, # Burgers equation
+        FLUIDS_SHWAT, # Shallow water equations
+        FLUIDS_NRHYD, # Euler equations
+        FLUIDS_GRAVS, # Gravitating Euler equation (with source terms)
+        FLUIDS_SRHYD, # Special relativistic
+        FLUIDS_URHYD, # Ultra relativistic
+        FLUIDS_GRHYD, # General relativistic
+        FLUIDS_NRMHD, # Magnetohydrodynamic (MHD)
+        FLUIDS_SRMHD, # Special relativistic MHD
+        FLUIDS_GRMHD, # General relativistic MHD
 
-    int FLUIDS_COORD_CARTESIAN   = -53
-    int FLUIDS_COORD_SPHERICAL   = -54
-    int FLUIDS_COORD_CYLINDRICAL = -55
+        FLUIDS_EOS_GAMMALAW,
+        FLUIDS_EOS_TABULATED,
 
-    int FLUIDS_ERROR_BADARG      = -66
-    int FLUIDS_ERROR_BADREQUEST  = -67
-    int FLUIDS_ERROR_RIEMANN     = -68
-    int FLUIDS_ERROR_INCOMPLETE  = -69
+        FLUIDS_RIEMANN_HLL,
+        FLUIDS_RIEMANN_HLLC,
+        FLUIDS_RIEMANN_EXACT,
 
-    int FLUIDS_RIEMANN_HLL       = -70
-    int FLUIDS_RIEMANN_HLLC      = -71
-    int FLUIDS_RIEMANN_EXACT     = -72
+        FLUIDS_CACHE_DEFAULT,
+        FLUIDS_CACHE_NOTOUCH,
+        FLUIDS_CACHE_CREATE,
+        FLUIDS_CACHE_STEAL,
+        FLUIDS_CACHE_RESET,
+        FLUIDS_CACHE_ERASE
 
-    int FLUIDS_CACHE_DEFAULT     = -73
-    int FLUIDS_CACHE_NOTOUCH     = -74
-    int FLUIDS_CACHE_CREATE      = -75
-    int FLUIDS_CACHE_STEAL       = -76
-    int FLUIDS_CACHE_RESET       = -77
-    int FLUIDS_CACHE_ERASE       = -78
 
     struct fluids_descr
     struct fluids_cache
     struct fluids_state
     struct fluids_riemn
-
 
     # fluids_descr member functions
     fluids_descr *fluids_descr_new()
@@ -119,13 +123,21 @@ cdef class FluidDescriptor(object):
 
 cdef class FluidState(object):
     cdef fluids_state *_c
+    cdef FluidDescriptor _descr
     cdef int _np
     cdef int _ns
     cdef int _ng
     cdef int _nm
     cdef int _nl
-    cdef int _disable_cache
-    cdef FluidDescriptor _descr
+
+
+cdef class FluidStateVector(FluidState):
+    cdef np.ndarray _states
+    cdef np.ndarray _primitive
+    cdef np.ndarray _passive
+    cdef np.ndarray _gravity
+    cdef np.ndarray _magnetic
+    cdef np.ndarray _location
 
 
 cdef class RiemannSolver(object):

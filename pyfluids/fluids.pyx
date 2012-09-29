@@ -5,10 +5,23 @@ import numpy as np
 def inverse_dict(d):
     return dict((v,k) for k, v in d.iteritems())
 
-_riemannsolvers  = {"hll"    : FLUIDS_RIEMANN_HLL,
-                    "hllc"   : FLUIDS_RIEMANN_HLLC,
-                    "exact"  : FLUIDS_RIEMANN_EXACT}
-_riemannsolvers_i = inverse_dict(_riemannsolvers)
+
+_fluidsystem = {"nrhyd"         : FLUIDS_NRHYD,
+                "gravs"         : FLUIDS_GRAVS}
+_coordsystem = {"cartesian"     : FLUIDS_COORD_CARTESIAN,
+                "spherical"     : FLUIDS_COORD_SPHERICAL,
+                "cylindrical"   : FLUIDS_COORD_CYLINDRICAL}
+_equationofstate = {"gammalaw"  : FLUIDS_EOS_GAMMALAW,
+                    "tabulated" : FLUIDS_EOS_TABULATED}
+_riemannsolver = {"hll"         : FLUIDS_RIEMANN_HLL,
+                  "hllc"        : FLUIDS_RIEMANN_HLLC,
+                  "exact"       : FLUIDS_RIEMANN_EXACT}
+
+_fluidsystem_i     = inverse_dict(_fluidsystem)
+_coordsystem_i     = inverse_dict(_coordsystem)
+_equationofstate_i = inverse_dict(_equationofstate)
+_riemannsolver_i   = inverse_dict(_riemannsolver)
+
 
 cdef class FluidDescriptor(object):
     """
@@ -21,18 +34,37 @@ cdef class FluidDescriptor(object):
     def __dealloc__(self):
         fluids_descr_del(self._c)
 
-    def __init__(self):
-        fluids_descr_setfluid(self._c, FLUIDS_NRHYD)
-        fluids_descr_setgamma(self._c, 1.4);
-        fluids_descr_seteos(self._c, FLUIDS_EOS_GAMMALAW);
+    def __init__(self, fluid='nrhyd', coordsystem='cartesian', eos='gammalaw',
+                 gamma=1.4):
+        fluids_descr_setfluid(self._c, _fluidsystem[fluid])
+        fluids_descr_seteos(self._c, _equationofstate[eos])
+        fluids_descr_setcoordsystem(self._c, _coordsystem[coordsystem])
+        fluids_descr_setgamma(self._c, gamma)
+
+    property fluid:
+        def __get__(self):
+            cdef int val
+            fluids_descr_getfluid(self._c, &val)
+            return _fluidsystem_i[val]
+
+    property eos:
+        def __get__(self):
+            cdef int val
+            fluids_descr_geteos(self._c, &val)
+            return _equationofstate_i[val]
+
+    property coordsystem:
+        def __get__(self):
+            cdef int val
+            fluids_descr_getcoordsystem(self._c, &val)
+            return _coordsystem_i[val]
 
     property gammalawindex:
         def __get__(self):
-            cdef double gam
-            fluids_descr_getgamma(self._c, &gam)
-            return gam
-        def __set__(self, val):
-            fluids_descr_setgamma(self._c, val)
+            cdef double val
+            fluids_descr_getgamma(self._c, &val)
+            return val
+
     property nprimitive:
         def __get__(self):
             return fluids_descr_getncomp(self._c, FLUIDS_PRIMITIVE)
@@ -63,16 +95,23 @@ cdef class FluidState(object):
     def __dealloc__(self):
         fluids_state_del(self._c)
 
-    def __init__(self, FluidDescriptor D):
+    def __init__(self, *args, **kwargs):
+        cdef FluidDescriptor D
+        try:
+            D = args[0]
+        except:
+            D = FluidDescriptor(**kwargs)
+        self._descr = D
         fluids_state_setdescr(self._c, D._c)
         self._np = D.nprimitive
         self._ns = D.npassive
         self._ng = D.ngravity
         self._nm = D.nmagnetic
         self._nl = D.nlocation
-        self._disable_cache = 1
-        self._descr = D
 
+    property descriptor:
+        def __get__(self):
+            return self._descr
     property primitive:
         def __get__(self):
             cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
@@ -146,67 +185,38 @@ cdef class FluidState(object):
         fluids_state_derive(self._c, &cs2, FLUIDS_SOUNDSPEEDSQUARED)
         return cs2**0.5
 
-    def erase_cache(self):
-        fluids_state_cache(self._c, FLUIDS_CACHE_ERASE)
 
-    def enable_cache(self):
-        self._disable_cache = 0
-
-    def disable_cache(self):
-        self._disable_cache = 1
-
-
-class FluidStateVector(object):
-    def __init__(self, shape, descr):
-        self._descr = descr
+cdef class FluidStateVector(FluidState):
+    def __init__(self, shape, *args, **kwargs):
+        super(FluidStateVector, self).__init__(*args, **kwargs)
+        shape = tuple(shape)
         self._states = np.ndarray(shape=shape, dtype=FluidState)
-        self._np = descr.nprimitive
-        self._shape = tuple(shape)
+        self._primitive = np.zeros(shape + (self._np,))
+        self._passive = np.zeros(shape + (self._ns,))
+        self._gravity = np.zeros(shape + (self._ng,))
+        self._magnetic = np.zeros(shape + (self._nm,))
+        self._location = np.zeros(shape + (self._nl,))
         for i in range(self._states.size):
-            self._states.flat[i] = FluidState(self._descr)
-        self.primitive = np.zeros(self._shape + (self._np,))
+            self._states.flat[i] = FluidState(self.descriptor)
 
-    def __getitem__(self, *args):
-        return self._states.__getitem__(*args)
-
-    @property
-    def shape(self):
-        return self._states.shape
-
-    @property
-    def size(self):
-        return self._states.size
-
-    @property
-    def flat(self):
-        return self._states.flat
-
-    def get_primitive(self):
-        P = np.zeros([self._states.size, self._np])
-        for n, S in enumerate(self._states.flat):
-            P[n] = S.primitive
-        return P.reshape(self._shape + (self._np,))
-
-    def set_primitive(self, P):
-        if P.shape != self._shape + (self._np,):
-            raise ValueError("wrong shape input array")
-        Q = P.reshape([self._states.size, self._np])
-        for n, S in enumerate(self._states.flat):
-            S.primitive = Q[n]
-
-    def get_conserved(self):
-        U = np.zeros([self._states.size, self._np])
-        for n, S in enumerate(self._states.flat):
-            U[n] = S.conserved()
-        return U.reshape(self._shape + (self._np,))
-
-    def set_conserved(self, U):
-        if U.shape != self._shape + (self._np,):
-            raise ValueError("wrong shape input array")
-        V = U.reshape([self._states.size, self._np])
-        for n, S in enumerate(self._states.flat):
-            S.from_conserved(V[n])
-
+    property states:
+        def __get__(self):
+            return self._states
+    property primitive:
+        def __get__(self):
+            return self._primitive
+    property passive:
+        def __get__(self):
+            return self._passive
+    property gravity:
+        def __get__(self):
+            return self._gravity
+    property magnetic:
+        def __get__(self):
+            return self._magnetic
+    property location:
+        def __get__(self):
+            return self._location
 
 
 cdef class RiemannSolver(object):
@@ -228,9 +238,9 @@ cdef class RiemannSolver(object):
         def __get__(self):
             cdef int solver
             fluids_riemn_getsolver(self._c, &solver)
-            return _riemannsolvers_i[solver]
+            return _riemannsolver_i[solver]
         def __set__(self, val):
-            fluids_riemn_setsolver(self._c, _riemannsolvers[val])
+            fluids_riemn_setsolver(self._c, _riemannsolver[val])
 
     def set_states(self, FluidState SL, FluidState SR):
         if SL._descr is not SR._descr:
