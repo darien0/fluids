@@ -140,7 +140,7 @@ cdef class FluidState(object):
 
 
 cdef class FluidStateVector(FluidState):
-    pass
+    cdef _derive(self, long flag, int sz)
 
 
 cdef class RiemannSolver(object):

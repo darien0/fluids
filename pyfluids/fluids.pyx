@@ -221,6 +221,43 @@ cdef class FluidStateVector(FluidState):
         def __get__(self):
             return self._states
 
+    cdef _derive(self, long flag, int size):
+        cdef tuple shape = self.states.shape + ((size,) if size > 1 else tuple())
+        cdef np.ndarray ret = np.zeros(shape)
+        cdef int n
+        cdef FluidState S
+        for n in range(self.states.size):
+            S = self.states.flat[n]
+            fluids_state_derive(S._c, <double*>ret.data + n*size, flag)
+        return ret
+
+    def from_conserved(self, U):
+        if U.shape != self.states.shape + (self._np,):
+            raise ValueError("wrong size input array")
+        cdef int n
+        cdef FluidState S
+        cdef np.ndarray x = U
+        for n in range(self.states.size):
+            S = self.states.flat[n]
+            fluids_state_fromcons(self._c, <double*>x.data, FLUIDS_CACHE_DEFAULT)
+
+    def conserved(self):
+        return self._derive(FLUIDS_CONSERVED, self._np)
+
+    def eigenvalues(self, dim=0):
+        cdef int flag = [FLUIDS_EVAL0, FLUIDS_EVAL1, FLUIDS_EVAL2][dim]
+        return self._derive(flag, self._np)
+
+    def left_eigenvectors(self, dim=0):
+        raise NotImplementedError
+
+    def right_eigenvectors(self, dim=0):
+        raise NotImplementedError
+
+    def sound_speed(self):
+        cs2 = self._derive(FLUIDS_SOUNDSPEEDSQUARED, 1)
+        return cs2**0.5
+
 
 cdef class RiemannSolver(object):
     """
@@ -259,5 +296,5 @@ cdef class RiemannSolver(object):
         if self.SL is None or self.SR is None:
             raise ValueError("solver needs a need a left and right state")
         cdef FluidState S = FluidState(self.SL._descr)
-        fluids_riemn_sample(self._c, S._c, s) # sets S.primitive
+        fluids_riemn_sample(self._c, S._c, s)
         return S
