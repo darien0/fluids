@@ -7,6 +7,7 @@
 #include "matrix.h"
 
 #define asserteq(x,y) assert(fabs(x-y) < 1e-12)
+static long fluidtype = FLUIDS_NRHYD;
 
 // Passes when get/set attributes on primitive struct work correctly
 // -----------------------------------------------------------------------------
@@ -20,7 +21,7 @@ int test1()
   fluids_descr *D = fluids_descr_new();
   fluids_state *S = fluids_state_new();
 
-  fluids_descr_setfluid(D, FLUIDS_NRHYD);
+  fluids_descr_setfluid(D, fluidtype);
   fluids_descr_setgamma(D, 1.4);
   fluids_descr_seteos(D, FLUIDS_EOS_GAMMALAW);
 
@@ -62,7 +63,7 @@ int test2()
   fluids_descr *D = fluids_descr_new();
   fluids_state *S = fluids_state_new();
 
-  fluids_descr_setfluid(D, FLUIDS_NRHYD);
+  fluids_descr_setfluid(D, fluidtype);
   fluids_descr_setgamma(D, 1.4);
   fluids_descr_seteos(D, FLUIDS_EOS_GAMMALAW);
 
@@ -100,7 +101,7 @@ int test3()
   fluids_descr *D = fluids_descr_new();
   fluids_state *S = fluids_state_new();
 
-  fluids_descr_setfluid(D, FLUIDS_NRHYD);
+  fluids_descr_setfluid(D, fluidtype);
   fluids_descr_setgamma(D, 1.4);
   fluids_descr_seteos(D, FLUIDS_EOS_GAMMALAW);
 
@@ -140,7 +141,7 @@ int test4()
   fluids_descr *D = fluids_descr_new();
   fluids_state *S[3];
 
-  fluids_descr_setfluid(D, FLUIDS_NRHYD);
+  fluids_descr_setfluid(D, fluidtype);
   fluids_descr_setgamma(D, 1.4);
   fluids_descr_seteos(D, FLUIDS_EOS_GAMMALAW);
 
@@ -195,7 +196,7 @@ int test5()
   fluids_descr *D = fluids_descr_new();
   fluids_state *S = fluids_state_new();
 
-  fluids_descr_setfluid(D, FLUIDS_NRHYD);
+  fluids_descr_setfluid(D, fluidtype);
   fluids_descr_setgamma(D, 1.4);
   fluids_descr_seteos(D, FLUIDS_EOS_GAMMALAW);
 
@@ -243,7 +244,7 @@ int test6()
     fluids_state *SR = fluids_state_new();
     fluids_state *S_ = fluids_state_new();
 
-    fluids_descr_setfluid(D, FLUIDS_NRHYD);
+    fluids_descr_setfluid(D, fluidtype);
     fluids_descr_setgamma(D, 1.4);
     fluids_descr_seteos(D, FLUIDS_EOS_GAMMALAW);
 
