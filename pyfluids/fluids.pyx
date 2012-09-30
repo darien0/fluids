@@ -108,26 +108,45 @@ cdef class FluidState(object):
         self._ng = D.ngravity
         self._nm = D.nmagnetic
         self._nl = D.nlocation
-        self._primitive = kwargs.get('primitive', np.zeros(self._np))
-        self._passive = kwargs.get('passive', np.zeros(self._ns))
-        self._gravity = kwargs.get('gravity', np.zeros(self._ng))
-        self._magnetic = kwargs.get('magnetic', np.zeros(self._nm))
-        self._location = kwargs.get('location', np.zeros(self._nl))
-        fluids_state_mapbuffer(self._c,
-                               <double*>self._primitive.data,
-                               FLUIDS_PRIMITIVE)
-        fluids_state_mapbuffer(self._c,
-                               <double*>self._passive.data,
-                               FLUIDS_PASSIVE)
-        fluids_state_mapbuffer(self._c,
-                               <double*>self._gravity.data,
-                               FLUIDS_GRAVITY)
-        fluids_state_mapbuffer(self._c,
-                               <double*>self._magnetic.data,
-                               FLUIDS_MAGNETIC)
-        fluids_state_mapbuffer(self._c,
-                               <double*>self._location.data,
-                               FLUIDS_LOCATION)
+        if self._np: self.map_buffer('primitive', np.zeros(self._np))
+        if self._ns: self.map_buffer('passive', np.zeros(self._ns))
+        if self._ng: self.map_buffer('gravity', np.zeros(self._ng))
+        if self._nm: self.map_buffer('magnetic', np.zeros(self._nm))
+        if self._nl: self.map_buffer('location', np.zeros(self._nl))
+
+    def map_buffer(self, key, buf):
+        cdef long flag
+        cdef int size
+        cdef double *x
+        if key == 'primitive':
+            self._primitive = buf
+            x = <double*>self._primitive.data
+            size = self._np
+            flag = FLUIDS_PRIMITIVE
+        if key == 'passive':
+            self._passive = buf
+            x = <double*>self._passive.data
+            size = self._ns
+            flag = FLUIDS_PASSIVE
+        if key == 'gravity':
+            self._gravity = buf
+            x = <double*>self._gravity.data
+            size = self._ng
+            flag = FLUIDS_GRAVITY
+        if key == 'magnetic':
+            self._magnetic = buf
+            x = <double*>self._magnetic.data
+            size = self._nm
+            flag = FLUIDS_MAGNETIC
+        if key == 'location':
+            self._location = buf
+            x = <double*>self._location.data
+            size = self._nl
+            flag = FLUIDS_LOCATION
+        if buf.shape != (size,) or buf.dtype != np.float64:
+            raise ValueError("wrong size or type buffer")
+
+        fluids_state_mapbuffer(self._c, x, flag)
 
     property descriptor:
         def __get__(self):
@@ -201,11 +220,13 @@ cdef class FluidStateVector(FluidState):
         super(FluidStateVector, self).__init__(*args, **kwargs)
         shape = tuple(shape)
         self._states = np.ndarray(shape=shape, dtype=FluidState)
+
         self._primitive = np.zeros(shape + (self._np,))
         self._passive = np.zeros(shape + (self._ns,))
         self._gravity = np.zeros(shape + (self._ng,))
         self._magnetic = np.zeros(shape + (self._nm,))
         self._location = np.zeros(shape + (self._nl,))
+
         cdef FluidState state
         cdef int n
         cdef np.ndarray P = self.primitive.reshape([self.states.size, self._np])
@@ -213,13 +234,17 @@ cdef class FluidStateVector(FluidState):
         cdef np.ndarray G = self.gravity.reshape([self.states.size, self._ng])
         cdef np.ndarray M = self.magnetic.reshape([self.states.size, self._nm])
         cdef np.ndarray L = self.location.reshape([self.states.size, self._nl])
+
+        for arr in [P, S, G, M, L]:
+            assert not arr.flags['OWNDATA']
+
         for n in range(self.states.size):
-            state = FluidState(self.descriptor,
-                               primitive=P[n],
-                               passive=S[n],
-                               gravity=G[n],
-                               magnetic=M[n],
-                               location=L[n])
+            state = FluidState(self.descriptor)
+            if self._np: state.map_buffer('primitive', P[n])
+            if self._ns: state.map_buffer('passive', S[n])
+            if self._ng: state.map_buffer('gravity', G[n])
+            if self._nm: state.map_buffer('magnetic', M[n])
+            if self._nl: state.map_buffer('location', L[n])
             self._states.flat[n] = state
 
     property shape:
