@@ -109,10 +109,10 @@ cdef class FluidState(object):
         self._nm = D.nmagnetic
         self._nl = D.nlocation
         self._primitive = kwargs.get('primitive', np.zeros(self._np))
-        self._passive = np.zeros(self._ns)
-        self._gravity = np.zeros(self._ng)
-        self._magnetic = np.zeros(self._nm)
-        self._location = np.zeros(self._nl)
+        self._passive = kwargs.get('passive', np.zeros(self._ns))
+        self._gravity = kwargs.get('gravity', np.zeros(self._ng))
+        self._magnetic = kwargs.get('magnetic', np.zeros(self._nm))
+        self._location = kwargs.get('location', np.zeros(self._nl))
         fluids_state_mapbuffer(self._c,
                                <double*>self._primitive.data,
                                FLUIDS_PRIMITIVE)
@@ -165,6 +165,11 @@ cdef class FluidState(object):
     def conserved(self):
         cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
         fluids_state_derive(self._c, <double*>x.data, FLUIDS_CONSERVED)
+        return x
+
+    def source_terms(self):
+        cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
+        fluids_state_derive(self._c, <double*>x.data, FLUIDS_SOURCETERMS)
         return x
 
     def eigenvalues(self, dim=0):
@@ -220,6 +225,9 @@ cdef class FluidStateVector(FluidState):
     property shape:
         def __get__(self):
             return self.states.shape
+    property size:
+        def __get__(self):
+            return self.states.size
     property flat:
         def __get__(self):
             return self.states.flat
@@ -250,6 +258,9 @@ cdef class FluidStateVector(FluidState):
 
     def conserved(self):
         return self._derive(FLUIDS_CONSERVED, self._np)
+
+    def source_terms(self):
+        return self._derive(FLUIDS_SOURCETERMS, self._np)
 
     def eigenvalues(self, dim=0):
         cdef int flag = [FLUIDS_EVAL0, FLUIDS_EVAL1, FLUIDS_EVAL2][dim]

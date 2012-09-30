@@ -38,3 +38,20 @@ assert U.shape == (10,10,5)
 fluid.from_conserved(U)
 assert (abs(fluid.primitive - 2.0) < 1e-14).all()
 
+state = pyfluids.FluidState(fluid='gravs')
+state.primitive = [1, 1, 1, 1, 1]
+state.gravity = [1, 1, 1, 1]
+
+
+fluid = pyfluids.FluidStateVector([2,2], fluid='gravs')
+fluid.primitive[...,:] = [1, 1, 1, 1, 1]
+fluid.gravity[...,:] = [1, 1, 1, 1]
+"""
+print fluid.states[0,0].gravity
+print fluid.gravity[0,0]
+print fluid.source_terms()
+print fluid.states[0,0].source_terms()
+print fluid.states[0,0].sound_speed()
+print fluid.sound_speed()
+print fluid.descriptor.fluid
+"""
