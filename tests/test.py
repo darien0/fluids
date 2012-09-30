@@ -37,3 +37,4 @@ assert U.shape == (10,10,5)
 
 fluid.from_conserved(U)
 assert (abs(fluid.primitive - 2.0) < 1e-14).all()
+

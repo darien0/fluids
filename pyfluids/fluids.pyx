@@ -217,6 +217,12 @@ cdef class FluidStateVector(FluidState):
                                location=L[n])
             self._states.flat[n] = state
 
+    property shape:
+        def __get__(self):
+            return self.states.shape
+    property flat:
+        def __get__(self):
+            return self.states.flat
     property states:
         def __get__(self):
             return self._states
@@ -236,10 +242,11 @@ cdef class FluidStateVector(FluidState):
             raise ValueError("wrong size input array")
         cdef int n
         cdef FluidState S
-        cdef np.ndarray x = U
+        cdef np.ndarray[np.double_t,ndim=1] x = np.array(U.flat)
         for n in range(self.states.size):
             S = self.states.flat[n]
-            fluids_state_fromcons(self._c, <double*>x.data, FLUIDS_CACHE_DEFAULT)
+            fluids_state_fromcons(S._c, <double*>x.data + n*self._np,
+                                  FLUIDS_CACHE_DEFAULT)
 
     def conserved(self):
         return self._derive(FLUIDS_CONSERVED, self._np)
