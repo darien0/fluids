@@ -3,26 +3,27 @@ import numpy as np
 import pyfluids
 
 state = pyfluids.FluidState(fluid='nrhyd')
-state.primitive = np.ones(5)
+state.primitive = [1, 1, 1, 1, 1]
 
-print state.primitive
+assert (state.primitive == [1, 1, 1, 1, 1]).all()
+assert (state.conserved() == [1, 4, 1, 1, 1]).all()
+
 U = state.conserved()
 state.from_conserved(U)
 
-print state.primitive
+assert (abs(state.primitive - [1, 1, 1, 1, 1]) < 1e-14).all()
+
 L = state.left_eigenvectors()
 R = state.right_eigenvectors()
 
-print np.dot(L,R)
-print state.eigenvalues(dim=1)
-print state.sound_speed()
-
+assert (abs(np.dot(L,R) - np.eye(5)) < 1e-14).all()
+assert abs(state.sound_speed() - 1.18321595662) < 1e-12
 
 fluid = pyfluids.FluidStateVector([10,10], fluid='nrhyd')
-print fluid.descriptor.eos
+assert fluid.descriptor.eos is 'gammalaw'
 
-print fluid.primitive.shape
-print fluid.states.shape
-print fluid.states[0,0].primitive
+fluid.states[0,0].primitive = [1.0, 2.0, 1.0, 1.0, 1.0]
+assert (fluid.primitive[0,0] == [1.0, 2.0, 1.0, 1.0, 1.0]).all()
 
-fluid.primitive[...] = np.zeros([10,10,5])
+fluid.primitive[0,0] = 3.0
+assert (fluid.states[0,0].primitive == 3.0).all()

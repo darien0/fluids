@@ -80,6 +80,7 @@ cdef extern from "fluids.h":
     struct fluids_state
     struct fluids_riemn
 
+
     # fluids_descr member functions
     fluids_descr *fluids_descr_new()
     int fluids_descr_del(fluids_descr *D)
@@ -130,15 +131,16 @@ cdef class FluidState(object):
     cdef int _ng
     cdef int _nm
     cdef int _nl
-
-
-cdef class FluidStateVector(FluidState):
     cdef np.ndarray _states
     cdef np.ndarray _primitive
     cdef np.ndarray _passive
     cdef np.ndarray _gravity
     cdef np.ndarray _magnetic
     cdef np.ndarray _location
+
+
+cdef class FluidStateVector(FluidState):
+    pass
 
 
 cdef class RiemannSolver(object):

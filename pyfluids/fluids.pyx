@@ -108,54 +108,55 @@ cdef class FluidState(object):
         self._ng = D.ngravity
         self._nm = D.nmagnetic
         self._nl = D.nlocation
-        """
-    cpdef _map_bufferp(self, np.ndarray buf, int absindex):
-        fluids_state_mapbuffer(self._c, FLUIDS_PRIMITIVE, <double*>buf.data + absindex * self._np)
-        self._buffers.append(buf)
-        """
+        self._primitive = kwargs.get('primitive', np.zeros(self._np))
+        self._passive = np.zeros(self._ns)
+        self._gravity = np.zeros(self._ng)
+        self._magnetic = np.zeros(self._nm)
+        self._location = np.zeros(self._nl)
+        fluids_state_mapbuffer(self._c,
+                               <double*>self._primitive.data,
+                               FLUIDS_PRIMITIVE)
+        fluids_state_mapbuffer(self._c,
+                               <double*>self._passive.data,
+                               FLUIDS_PASSIVE)
+        fluids_state_mapbuffer(self._c,
+                               <double*>self._gravity.data,
+                               FLUIDS_GRAVITY)
+        fluids_state_mapbuffer(self._c,
+                               <double*>self._magnetic.data,
+                               FLUIDS_MAGNETIC)
+        fluids_state_mapbuffer(self._c,
+                               <double*>self._location.data,
+                               FLUIDS_LOCATION)
+
     property descriptor:
         def __get__(self):
             return self._descr
     property primitive:
         def __get__(self):
-            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
-            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_PRIMITIVE)
-            return x
-        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
-            if x.size != self._np: raise ValueError("wrong size input array")
-            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_PRIMITIVE)
+            return self._primitive
+        def __set__(self, val):
+            self._primitive[...] = val
     property passive:
         def __get__(self):
-            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._ns)
-            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_PASSIVE)
-            return x
-        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
-            if x.size != self._ns: raise ValueError("wrong size input array")
-            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_PASSIVE)
+            return self._passive
+        def __set__(self, val):
+            self._passive[...] = val
     property gravity:
         def __get__(self):
-            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._ng)
-            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_GRAVITY)
-            return x
-        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
-            if x.size != self._ng: raise ValueError("wrong size input array")
-            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_GRAVITY)
+            return self._gravity
+        def __set__(self, val):
+            self._gravity[...] = val
     property magnetic:
         def __get__(self):
-            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._nm)
-            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_MAGNETIC)
-            return x
-        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
-            if x.size != self._ng: raise ValueError("wrong size input array")
-            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_MAGNETIC)
+            return self._magnetic
+        def __set__(self, val):
+            self._magnetic[...] = val
     property location:
         def __get__(self):
-            cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._nl)
-            fluids_state_getattr(self._c, <double*>x.data, FLUIDS_LOCATION)
-            return x
-        def __set__(self, np.ndarray[np.double_t,ndim=1] x):
-            if x.size != self._ng: raise ValueError("wrong size input array")
-            fluids_state_setattr(self._c, <double*>x.data, FLUIDS_LOCATION)
+            return self._location
+        def __set__(self, val):
+            self._location[...] = val
 
     def from_conserved(self, np.ndarray[np.double_t,ndim=1] x):
         if x.size != self._np: raise ValueError("wrong size input array")
@@ -200,33 +201,25 @@ cdef class FluidStateVector(FluidState):
         self._gravity = np.zeros(shape + (self._ng,))
         self._magnetic = np.zeros(shape + (self._nm,))
         self._location = np.zeros(shape + (self._nl,))
-        cdef FluidState S
+        cdef FluidState state
         cdef int n
-        """
-        for n in range(self._states.size):
-            S = FluidState(self.descriptor)
-            fluids_state_mapbuffer(S._c, <double*>self._primitive.data,
-                                   FLUIDS_PRIMITIVE)
-            self._states.flat[n] = S
-            """
+        cdef np.ndarray P = self.primitive.reshape([self.states.size, self._np])
+        cdef np.ndarray S = self.passive.reshape([self.states.size, self._ns])
+        cdef np.ndarray G = self.gravity.reshape([self.states.size, self._ng])
+        cdef np.ndarray M = self.magnetic.reshape([self.states.size, self._nm])
+        cdef np.ndarray L = self.location.reshape([self.states.size, self._nl])
+        for n in range(self.states.size):
+            state = FluidState(self.descriptor,
+                               primitive=P[n],
+                               passive=S[n],
+                               gravity=G[n],
+                               magnetic=M[n],
+                               location=L[n])
+            self._states.flat[n] = state
+
     property states:
         def __get__(self):
             return self._states
-    property primitive:
-        def __get__(self):
-            return self._primitive
-    property passive:
-        def __get__(self):
-            return self._passive
-    property gravity:
-        def __get__(self):
-            return self._gravity
-    property magnetic:
-        def __get__(self):
-            return self._magnetic
-    property location:
-        def __get__(self):
-            return self._location
 
 
 cdef class RiemannSolver(object):
