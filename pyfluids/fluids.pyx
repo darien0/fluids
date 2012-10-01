@@ -7,7 +7,8 @@ def inverse_dict(d):
 
 
 _fluidsystem = {"nrhyd"         : FLUIDS_NRHYD,
-                "gravs"         : FLUIDS_GRAVS}
+                "gravs"         : FLUIDS_GRAVS,
+                "gravp"         : FLUIDS_GRAVP}
 _coordsystem = {"cartesian"     : FLUIDS_COORD_CARTESIAN,
                 "spherical"     : FLUIDS_COORD_SPHERICAL,
                 "cylindrical"   : FLUIDS_COORD_CYLINDRICAL}
@@ -186,6 +187,12 @@ cdef class FluidState(object):
         fluids_state_derive(self._c, <double*>x.data, FLUIDS_CONSERVED)
         return x
 
+    def flux(self, dim=0):
+        cdef int flag = [FLUIDS_FLUX0, FLUIDS_FLUX1, FLUIDS_FLUX2][dim]
+        cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
+        fluids_state_derive(self._c, <double*>x.data, flag)
+        return x
+
     def source_terms(self):
         cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
         fluids_state_derive(self._c, <double*>x.data, FLUIDS_SOURCETERMS)
@@ -270,6 +277,9 @@ cdef class FluidStateVector(FluidState):
             fluids_state_derive(S._c, <double*>ret.data + n*size, flag)
         return ret
 
+    def __getitem__(self, args):
+        return self.states.__getitem__(args)
+
     def from_conserved(self, U):
         if U.shape != self.states.shape + (self._np,):
             raise ValueError("wrong size input array")
@@ -286,6 +296,10 @@ cdef class FluidStateVector(FluidState):
 
     def source_terms(self):
         return self._derive(FLUIDS_SOURCETERMS, self._np)
+
+    def flux(self, dim=0):
+        cdef int flag = [FLUIDS_FLUX0, FLUIDS_FLUX1, FLUIDS_FLUX2][dim]
+        return self._derive(flag, self._np)
 
     def eigenvalues(self, dim=0):
         cdef int flag = [FLUIDS_EVAL0, FLUIDS_EVAL1, FLUIDS_EVAL2][dim]

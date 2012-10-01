@@ -2,7 +2,7 @@
 import numpy as np
 import pyfluids
 
-state = pyfluids.FluidState(fluid='nrhyd')
+state = pyfluids.FluidState(fluid='gravp')
 state.primitive = [1, 1, 1, 1, 1]
 
 assert (state.primitive == [1, 1, 1, 1, 1]).all()
@@ -38,11 +38,10 @@ assert U.shape == (10,10,5)
 fluid.from_conserved(U)
 assert (abs(fluid.primitive - 2.0) < 1e-14).all()
 
-fluid = pyfluids.FluidStateVector([2,2], fluid='gravs')
+fluid = pyfluids.FluidStateVector([64], fluid='gravp')
 fluid.primitive[...,:] = [1, 1, 1, 1, 1]
 fluid.gravity[...,:] = [1, 1, 1, 1]
 
-assert (fluid.states[0,0].gravity == [1, 1, 1, 1]).all()
-assert (fluid.gravity[0,0] == [1, 1, 1, 1]).all()
-assert fluid.descriptor.fluid is 'gravs'
-
+assert (fluid.states[0].gravity == [1, 1, 1, 1]).all()
+assert (fluid.gravity[0] == [1, 1, 1, 1]).all()
+assert fluid.descriptor.fluid is 'gravp'
