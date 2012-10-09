@@ -19,6 +19,13 @@ R = state.right_eigenvectors()
 assert (abs(np.dot(L,R) - np.eye(5)) < 1e-14).all()
 assert abs(state.sound_speed() - 1.18321595662) < 1e-12
 
+state = pyfluids.FluidState(fluid='gravp')
+state.primitive = [1, 1, 1, 1, 1]
+f1 = state.flux()
+state.primitive = [1, 1, 1, 0, 0]
+f2 = state.flux()
+assert (f1 != f2).any()
+
 fluid = pyfluids.FluidStateVector([10,10], fluid='nrhyd')
 assert fluid.descriptor.eos is 'gammalaw'
 
