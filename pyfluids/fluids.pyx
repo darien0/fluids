@@ -66,6 +66,14 @@ cdef class FluidDescriptor(object):
             fluids_descr_getgamma(self._c, &val)
             return val
 
+    property rhobar:
+        def __get__(self):
+            cdef double val
+            fluids_descr_getrhobar(self._c, &val)
+            return val
+        def __set__(self, double val):
+            fluids_descr_setrhobar(self._c, val)
+
     property nprimitive:
         def __get__(self):
             return fluids_descr_getncomp(self._c, FLUIDS_PRIMITIVE)

@@ -94,6 +94,8 @@ cdef extern from "fluids.h":
     int fluids_descr_setcoordsystem(fluids_descr *D, int coordsystem)
     int fluids_descr_getgamma(fluids_descr *D, double *gam)
     int fluids_descr_setgamma(fluids_descr *D, double gam)
+    int fluids_descr_getrhobar(fluids_descr *D, double *rhobar)
+    int fluids_descr_setrhobar(fluids_descr *D, double rhobar)
     int fluids_descr_getncomp(fluids_descr *D, long flag)
 
 
