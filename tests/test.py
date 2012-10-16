@@ -15,6 +15,11 @@ assert (abs(state.primitive - [1, 1, 1, 1, 1]) < 1e-14).all()
 
 L = state.left_eigenvectors()
 R = state.right_eigenvectors()
+A = state.jacobian()
+LAR = np.dot(np.dot(L, A), R)
+LAR[abs(LAR) < 1e-12] = 0.0
+lam = state.eigenvalues()
+assert (abs(np.diag(LAR) - lam) < 1e-12).all()
 
 assert (abs(np.dot(L,R) - np.eye(5)) < 1e-14).all()
 assert abs(state.sound_speed() - 1.18321595662) < 1e-12
