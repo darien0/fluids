@@ -8,7 +8,8 @@ def inverse_dict(d):
 
 _fluidsystem = {"nrhyd"         : FLUIDS_NRHYD,
                 "gravs"         : FLUIDS_GRAVS,
-                "gravp"         : FLUIDS_GRAVP}
+                "gravp"         : FLUIDS_GRAVP,
+                "srhyd"         : FLUIDS_SRHYD}
 _coordsystem = {"cartesian"     : FLUIDS_COORD_CARTESIAN,
                 "spherical"     : FLUIDS_COORD_SPHERICAL,
                 "cylindrical"   : FLUIDS_COORD_CYLINDRICAL}
@@ -188,7 +189,10 @@ cdef class FluidState(object):
 
     def from_conserved(self, np.ndarray[np.double_t,ndim=1] x):
         if x.size != self._np: raise ValueError("wrong size input array")
-        fluids_state_fromcons(self._c, <double*>x.data, FLUIDS_CACHE_DEFAULT)
+        cdef int e = fluids_state_fromcons(self._c, <double*>x.data,
+                                           FLUIDS_CACHE_DEFAULT)
+        if e:
+            raise RuntimeError("conserved to primitive failed")
 
     def conserved(self):
         cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
@@ -221,7 +225,15 @@ cdef class FluidState(object):
     def right_eigenvectors(self, dim=0):
         cdef int flag = [FLUIDS_REVECS0, FLUIDS_REVECS1, FLUIDS_REVECS2][dim]
         cdef np.ndarray[np.double_t,ndim=2] x = np.zeros([self._np]*2)
-        fluids_state_derive(self._c, <double*>x.data, flag)       
+        fluids_state_derive(self._c, <double*>x.data, flag)
+        return x
+
+    def jacobian(self, dim=0):
+        cdef int flag = [FLUIDS_JACOBIAN0, FLUIDS_JACOBIAN1, FLUIDS_JACOBIAN2][dim]
+        cdef np.ndarray[np.double_t,ndim=2] x = np.zeros([self._np]*2)
+        cdef int err = fluids_state_derive(self._c, <double*>x.data, flag)
+        if err == FLUIDS_ERROR_NOT_IMPLEMENTED:
+            raise NotImplementedError()
         return x
 
     def sound_speed(self):
@@ -291,13 +303,17 @@ cdef class FluidStateVector(FluidState):
     def from_conserved(self, U):
         if U.shape != self.states.shape + (self._np,):
             raise ValueError("wrong size input array")
-        cdef int n
+        cdef int n, e
         cdef FluidState S
         cdef np.ndarray[np.double_t,ndim=1] x = np.array(U.flat)
         for n in range(self.states.size):
             S = self.states.flat[n]
-            fluids_state_fromcons(S._c, <double*>x.data + n*self._np,
-                                  FLUIDS_CACHE_DEFAULT)
+            e = fluids_state_fromcons(S._c, <double*>x.data + n*self._np,
+                                      FLUIDS_CACHE_DEFAULT)
+            if e:
+                raise RuntimeError(
+                    "conserved to primitive failed on zone %d: U=%s" % (
+                        n, U[n]))
 
     def conserved(self):
         return self._derive(FLUIDS_CONSERVED, self._np)
