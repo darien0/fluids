@@ -189,7 +189,10 @@ cdef class FluidState(object):
 
     def from_conserved(self, np.ndarray[np.double_t,ndim=1] x):
         if x.size != self._np: raise ValueError("wrong size input array")
-        fluids_state_fromcons(self._c, <double*>x.data, FLUIDS_CACHE_DEFAULT)
+        cdef int e = fluids_state_fromcons(self._c, <double*>x.data,
+                                           FLUIDS_CACHE_DEFAULT)
+        if e:
+            raise RuntimeError("conserved to primitive failed")
 
     def conserved(self):
         cdef np.ndarray[np.double_t,ndim=1] x = np.zeros(self._np)
@@ -300,13 +303,17 @@ cdef class FluidStateVector(FluidState):
     def from_conserved(self, U):
         if U.shape != self.states.shape + (self._np,):
             raise ValueError("wrong size input array")
-        cdef int n
+        cdef int n, e
         cdef FluidState S
         cdef np.ndarray[np.double_t,ndim=1] x = np.array(U.flat)
         for n in range(self.states.size):
             S = self.states.flat[n]
-            fluids_state_fromcons(S._c, <double*>x.data + n*self._np,
-                                  FLUIDS_CACHE_DEFAULT)
+            e = fluids_state_fromcons(S._c, <double*>x.data + n*self._np,
+                                      FLUIDS_CACHE_DEFAULT)
+            if e:
+                raise RuntimeError(
+                    "conserved to primitive failed on zone %d: U=%s" % (
+                        n, U[n]))
 
     def conserved(self):
         return self._derive(FLUIDS_CONSERVED, self._np)
