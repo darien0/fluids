@@ -13,40 +13,25 @@ state.from_conserved(U)
 
 assert (abs(state.primitive - [1, 1, 1, 1, 1]) < 1e-14).all()
 
-# Eigen-systems are not permuted to pass this test right now
-"""
 dim = 0
 L = state.left_eigenvectors(dim=dim)
 R = state.right_eigenvectors(dim=dim)
-L_ = np.zeros_like(L)
-R_ = np.zeros_like(R)
-L_[:,0] = L[:,0]
-L_[:,1] = L[:,2]
-L_[:,2] = L[:,3]
-L_[:,3] = L[:,4]
-L_[:,4] = L[:,1]
-R_[0,:] = R[0,:]
-R_[1,:] = R[2,:]
-R_[2,:] = R[3,:]
-R_[3,:] = R[4,:]
-R_[4,:] = R[1,:]
 
-L, R = L_, R_
 A = state.jacobian(dim=dim)
 LAR = np.dot(np.dot(L, A), R)
 I = np.dot(L, R)
 LAR[abs(LAR) < 1e-12] = 0.0
 I[abs(I) < 1e-12] = 0.0
-lam = state.eigenvalues(dim=dim)
-print LAR
-print lam
-print I
-exit()
-
+lam_ = state.eigenvalues(dim=dim) # ordered [am, lc, lc, lc, ap]
+lam = np.zeros_like(lam_) # ordered [am, ap, lc, lc, lc]
+lam[0] = lam_[0]
+lam[1] = lam_[4]
+lam[2] = lam_[1]
+lam[3] = lam_[2]
+lam[4] = lam_[3]
 assert (abs(np.diag(LAR) - lam) < 1e-12).all()
 assert (abs(np.dot(L,R) - np.eye(5)) < 1e-14).all()
 assert abs(state.sound_speed() - 1.18321595662) < 1e-12
-"""
 
 state = pyfluids.FluidState(fluid='gravp')
 state.primitive = [1, 1, 1, 1, 1]
