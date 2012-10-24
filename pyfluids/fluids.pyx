@@ -9,6 +9,7 @@ def inverse_dict(d):
 _fluidsystem = {"nrhyd"         : FLUIDS_NRHYD,
                 "gravs"         : FLUIDS_GRAVS,
                 "gravp"         : FLUIDS_GRAVP,
+                "grave"         : FLUIDS_GRAVE,
                 "srhyd"         : FLUIDS_SRHYD}
 _coordsystem = {"cartesian"     : FLUIDS_COORD_CARTESIAN,
                 "spherical"     : FLUIDS_COORD_SPHERICAL,
